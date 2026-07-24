@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Carson Games - Games</title>
+  <script src="../assets/theme-loader.js"></script>
   <link rel="stylesheet" href="../style.css">
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@700&family=Plus+Jakarta+Sans:wght=500;600;700&display=swap" rel="stylesheet">
   <style>
@@ -28,27 +29,27 @@
     .game-card:hover::before {
       transform: translateX(100%);
     }
-    .game-card:hover { 
-      transform: translateY(-6px) scale(1.02); 
-      border-color: var(--accent); 
-      box-shadow: 0 16px 40px rgba(108, 99, 255, 0.25), 0 0 30px rgba(108, 99, 255, 0.15); 
+    .game-card:hover {
+      transform: translateY(-6px) scale(1.02);
+      border-color: var(--accent);
+      box-shadow: 0 16px 40px rgba(108, 99, 255, 0.25), 0 0 30px rgba(108, 99, 255, 0.15);
     }
     .game-thumb { width: 100%; aspect-ratio: 4/3; background: #181b33; display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-weight: 600; font-size: 0.9rem; border-bottom: 1px solid var(--border); transition: filter 0.3s var(--ease); }
     .game-card:hover .game-thumb { filter: brightness(1.15); }
-    
+
     /* Layout fix for text on left, SVG on right */
-    .game-info { 
-      padding: 1.2rem; 
+    .game-info {
+      padding: 1.2rem;
       display: flex;
       justify-content: space-between;
       align-items: center;
       gap: 0.75rem;
     }
     /* Natural text-wrapping protection */
-    .game-info h4 { 
-      font-size: 1rem; 
-      margin: 0; 
-      font-family: var(--font-display); 
+    .game-info h4 {
+      font-size: 1rem;
+      margin: 0;
+      font-family: var(--font-display);
       overflow-wrap: break-word;
       word-wrap: break-word;
     }

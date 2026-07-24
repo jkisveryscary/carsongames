@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Carson Games</title>
+  <script src="assets/theme-loader.js"></script>
   <link rel="stylesheet" href="style.css">
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght=700;800&family=Plus+Jakarta+Sans:wght=500;600;700&display=swap" rel="stylesheet">
   <style>
@@ -186,9 +187,8 @@
       <hr>
       <div class="billboard-scroll-area">
         <ul>
-          <li>created</li>
-          <li>new chat</li>
-          <li>accounts</li>
+          <li>Website Created</li>
+          <li>Working on a proxy</li>
         </ul>
       </div>
     </div>
@@ -278,11 +278,11 @@
       }
     };
 
-        /* FETCH REAL BACKEND ANNOUNCEMENTS */
+      /* FETCH REAL BACKEND ANNOUNCEMENTS */
     const loadAnnouncements = async () => {
       const targetFeed = document.getElementById("announcements-root");
       if (!targetFeed) return;
-  
+
       const { data: records, error } = await supabase
         .from("announcements")
         .select("*")

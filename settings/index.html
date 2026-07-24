@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Settings - Carson Games</title>
+  <script src="../assets/theme-loader.js"></script>
   <link rel="stylesheet" href="../style.css">
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght=700;800&family=Plus+Jakarta+Sans:wght=500;600;700&display=swap" rel="stylesheet">
   <style>
@@ -11,19 +12,6 @@
     body {
       transition: background 0.3s ease;
     }
-    body.theme-red { background-color: #1c0505 !important; background-image: none; }
-    body.theme-orange { background-color: #1c0f05 !important; background-image: none; }
-    body.theme-yellow { background-color: #161402 !important; background-image: none; }
-    body.theme-green { background-color: #03140a !important; background-image: none; }
-    body.theme-blue { background-color: #030a1c !important; background-image: none; }
-    body.theme-purple { background-color: #0f031c !important; background-image: none; }
-
-    body.theme-stars { background-image: url('../assets/stars.png') !important; background-size: cover; background-attachment: fixed; background-position: center; }
-    body.theme-lightning { background-image: url('../assets/lightning.png') !important; background-size: cover; background-attachment: fixed; background-position: center; }
-    body.theme-teal-magenta { background-image: url('../assets/teal-magenta.png') !important; background-size: cover; background-attachment: fixed; background-position: center; }
-    body.theme-blue-pink { background-image: url('../assets/blue-pink.png') !important; background-size: cover; background-attachment: fixed; background-position: center; }
-    body.theme-blue-spots { background-image: url('../assets/blue-spots.png') !important; background-size: cover; background-attachment: fixed; background-position: center; }
-    body.theme-white-spots { background-image: url('../assets/white-spots.png') !important; background-size: cover; background-attachment: fixed; background-position: center; }
 
     .settings-hero { text-align: center; padding: 4rem 2rem 2rem; }
     .settings-hero h1 { font-family: var(--font-display); font-size: 3rem; font-weight: 800; }
@@ -33,7 +21,7 @@
     .settings-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-l); padding: 2.5rem 2rem; display: flex; flex-direction: column; gap: 2.5rem; }
     .settings-section { display: flex; flex-direction: column; gap: 1.25rem; }
     .settings-section h3 { font-family: var(--font-display); font-size: 1.4rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; color: #fff; }
-    
+
     .form-group { display: flex; flex-direction: column; gap: 0.5rem; }
     .form-group label { font-size: 0.9rem; color: var(--text-muted); font-weight: 600; }
     .form-group input, .form-group textarea { background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border); border-radius: var(--radius-m); padding: 0.75rem 1rem; color: #fff; font-size: 1rem; outline: none; transition: all 0.3s var(--ease); }
@@ -214,7 +202,11 @@
       { id: 'teal-magenta', type: 'img', val: '../assets/teal-magenta.png', label: 'teal + magenta' },
       { id: 'blue-pink', type: 'img', val: '../assets/blue-pink.png', label: 'blue + pink' },
       { id: 'blue-spots', type: 'img', val: '../assets/blue-spots.png', label: 'blue spots' },
-      { id: 'white-spots', type: 'img', val: '../assets/white-spots.png', label: 'white spots' }
+      { id: 'white-spots', type: 'img', val: '../assets/white-spots.png', label: 'white spots' },
+      { id: 'nebula', type: 'img', val: '../assets/nebula.svg', label: 'nebula' },
+      { id: 'cosmic-grid', type: 'img', val: '../assets/cosmic-grid.svg', label: 'cosmic grid' },
+      { id: 'arcade-neon', type: 'img', val: '../assets/arcade-neon.svg', label: 'arcade neon' },
+      { id: 'cyber-circuit', type: 'img', val: '../assets/cyber-circuit.svg', label: 'cyber circuit' }
     ];
 
     const renderSettingsInterface = async (user) => {
@@ -222,13 +214,12 @@
 
       navAuthContainer.innerHTML = '<a id="logout-btn" href="#" class="nav-auth-btn">Logout</a>';
       navAuthContainer.style.display = '';
-      
+
       const { data: profile } = await supabase.from("users").select("*").eq("id", user.id).single();
       const currentBgSetting = (profile && profile.background) ? profile.background : 'default';
       const currentUserRole = (profile && profile.role) ? profile.role : 'user';
 
-      localStorage.setItem('carson_theme', currentBgSetting);
-      document.body.className = currentBgSetting === 'default' ? '' : 'theme-' + currentBgSetting;
+      window.CarsonGamesTheme.apply(currentBgSetting);
 
       settingsWrapper.innerHTML = `
         <form id="username-form" class="settings-section">
@@ -263,15 +254,14 @@
         if (theme.type === 'img') canvasStyle = `background-image: url('${theme.val}');`;
 
         thumb.innerHTML = `<div class="thumb-canvas" style="${canvasStyle}"></div><div class="thumb-label">${theme.label}</div>`;
-        
+
         thumb.onclick = async () => {
           document.querySelectorAll('.background-thumb-card').forEach(c => c.classList.remove('active'));
           thumb.classList.add('active');
           const bgMsg = document.getElementById("background-msg");
 
           try {
-            document.body.className = theme.id === 'default' ? '' : 'theme-' + theme.id;
-            localStorage.setItem('carson_theme', theme.id);
+            window.CarsonGamesTheme.apply(theme.id);
             await supabase.from("users").update({ background: theme.id }).eq("id", user.id);
             bgMsg.textContent = "Theme updated!";
             bgMsg.className = "status-msg status-success";
@@ -295,7 +285,7 @@
                 <button type="button" id="btn-remove-box" class="btn-pm btn-pm-minus" title="Remove bottom text box">-</button>
               </div>
             </div>
-            
+
             <div id="announcements-stack" class="announcements-box-stack">
               <div style="color:var(--text-muted); font-size:0.9rem;">Loading announcements...</div>
             </div>

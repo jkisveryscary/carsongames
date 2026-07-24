@@ -4,8 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Carson Games - Chat</title>
+  <script src="../assets/theme-loader.js"></script>
+  <link rel="stylesheet" href="../style.css">
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@700&family=Plus+Jakarta+Sans:wght=500;600;700&display=swap" rel="stylesheet">
-  
+
   <style>
     /* ── THEME CONFIGURATION ──────────────────────────────── */
     :root {
@@ -36,23 +38,14 @@
     }
 
     body {
-      background-color: var(--bg);
+      background: var(--bg);
       color: var(--text);
-      height: 100dvh; 
+      height: 100dvh;
       max-height: 100dvh;
       display: flex;
       flex-direction: column;
-      overflow: hidden; 
+      overflow: hidden;
       -webkit-font-smoothing: antialiased;
-    }
-
-    body::before {
-      content: "";
-      position: fixed;
-      inset: 0;
-      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.02'/%3E%3C/svg%3E");
-      pointer-events: none;
-      z-index: 1000;
     }
 
     header {
@@ -64,7 +57,7 @@
       position: sticky;
       top: 0;
       z-index: 999;
-      flex-shrink: 0; 
+      flex-shrink: 0;
     }
 
     .nav-container {
@@ -198,48 +191,48 @@
     }
 
     /* ── LAYOUT MECHANICS ─────────────────────────────────── */
-    .chat-layout { 
-      display: flex; 
-      justify-content: center; 
-      align-items: stretch; 
-      height: calc(100dvh - 72px); 
-      width: 100vw; 
-      overflow: hidden; 
-      background: var(--bg); 
+    .chat-layout {
+      display: flex;
+      justify-content: center;
+      align-items: stretch;
+      height: calc(100dvh - 72px);
+      width: 100vw;
+      overflow: hidden;
+      background: var(--bg);
     }
 
-    .chat-main { 
-      width: 100%; 
-      max-width: 1100px; 
-      margin: 0 auto; 
-      display: flex; 
-      flex-direction: column; 
-      background: var(--card); 
-      overflow: hidden; 
-      position: relative; 
+    .chat-main {
+      width: 100%;
+      max-width: 1100px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      background: var(--card);
+      overflow: hidden;
+      position: relative;
     }
 
-    .chat-header { 
-      display: flex; 
-      align-items: center; 
-      justify-content: space-between; 
-      gap: 12px; 
-      padding: 0.95rem 1.5rem; 
-      border-bottom: 1px solid var(--border); 
+    .chat-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 0.95rem 1.5rem;
+      border-bottom: 1px solid var(--border);
       flex-shrink: 0;
     }
 
     .chat-meta { display: flex; align-items: center; gap: 0.75rem; }
     .channel-title { font-family: var(--font-display); font-size: 1rem; display: flex; align-items: center; gap: 0.5rem; }
 
-    .message-scroller { 
-      flex: 1; 
-      padding: 1.4rem 1.5rem; 
-      display: flex; 
-      flex-direction: column; 
-      gap: 1rem; 
-      overflow-y: auto; 
-      -webkit-overflow-scrolling: touch; 
+    .message-scroller {
+      flex: 1;
+      padding: 1.4rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
     }
 
     .msg-block { display: flex; gap: 1rem; align-items: flex-start; transition: opacity 0.2s ease; position: relative; }
@@ -253,7 +246,7 @@
     .msg-content p { color: #cbd5e1; font-size: 0.95rem; line-height: 1.7; margin: 0; }
 
     .msg-controls-tray { position: absolute; right: 10px; top: 12px; display: flex; gap: 8px; align-items: center; }
-    
+
     .action-control-btn { background: var(--surface); border: 1px solid var(--border); color: var(--text-muted); cursor: pointer; width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; }
     .action-control-btn:hover { color: var(--text); border-color: var(--text-muted); }
     .action-control-btn.btn-delete-msg:hover { background: rgba(239, 68, 68, 0.15); color: #ef4444; border-color: rgba(239, 68, 68, 0.4); }
@@ -267,32 +260,32 @@
     .duel-card { background: var(--surface); border: 1px solid rgba(108, 99, 255, 0.2); border-radius: var(--radius-m); padding: 1rem; margin-top: 0.6rem; display: flex; flex-direction: column; gap: 0.75rem; max-width: 440px; }
     .duel-card-msg { font-size: 0.9rem; color: #cbd5e1; font-weight: 500; }
     .duel-card-actions { display: flex; gap: 8px; }
-    
+
     .btn-duel-accept { background: #10b981; color: white; border: none; padding: 6px 14px; border-radius: 6px; font-weight: 700; font-size: 0.8rem; cursor: pointer; transition: background 0.2s ease; }
     .btn-duel-accept:hover { background: #059669; }
     .btn-duel-decline { background: #ef4444; color: white; border: none; padding: 6px 14px; border-radius: 6px; font-weight: 700; font-size: 0.8rem; cursor: pointer; transition: background 0.2s ease; }
     .btn-duel-decline:hover { background: #dc2626; }
 
-    .input-container { 
-      padding: 0 1.5rem 1.5rem; 
-      position: relative; 
-      flex-shrink: 0; 
+    .input-container {
+      padding: 0 1.5rem 1.5rem;
+      position: relative;
+      flex-shrink: 0;
     }
     .input-row { display: flex; gap: 0.75rem; align-items: center; }
-    
-    .input-container .input-field { 
-      width: 100%; 
-      background: var(--surface); 
-      padding: 12px 16px; 
-      border-radius: var(--radius-m); 
-      border: 1px solid var(--border); 
-      color: var(--text); 
+
+    .input-container .input-field {
+      width: 100%;
+      background: var(--surface);
+      padding: 12px 16px;
+      border-radius: var(--radius-m);
+      border: 1px solid var(--border);
+      color: var(--text);
       outline: none;
       font-size: 0.9rem;
       transition: all 0.3s var(--ease);
-      touch-action: manipulation; 
+      touch-action: manipulation;
     }
-    
+
     .input-container .input-field:focus {
       border-color: var(--accent);
       box-shadow: 0 0 0 3px var(--accent-glow), 0 0 20px rgba(108, 99, 255, 0.2);
@@ -337,12 +330,12 @@
       padding: 6px 0;
       -webkit-overflow-scrolling: touch;
     }
-    
+
     .suggestion-item {
       display: flex;
       align-items: center;
       gap: 10px;
-      padding: 12px 14px; 
+      padding: 12px 14px;
       color: #cbd5e1;
       cursor: pointer;
       font-size: 0.9rem;
@@ -394,13 +387,13 @@
           <div class="channel-title"><span></span><strong>Carson Chat</strong></div>
         </div>
       </div>
-      
+
       <div class="message-scroller" id="message-scroller"></div>
 
       <div class="input-container">
         <div id="suggestions-popover" class="suggestions-popover"></div>
         <div id="cooldown-timer-text" class="cooldown-text"></div>
-        
+
         <div class="input-row">
           <input id="message-input" type="text" class="input-field" placeholder="Type a message or / for a command..." autocomplete="off">
           <button id="send-message-btn" class="btn-primary send-btn">Send</button>
@@ -442,36 +435,36 @@ const EX_COMMANDS = [
 ].sort((a, b) => a.name.localeCompare(b.name));
 
 let currentUser = null;
-let currentUsername = "User"; 
-let currentUserRole = "user"; 
-let currentUserMutedUntil = 0; 
+let currentUsername = "User";
+let currentUserRole = "user";
+let currentUserMutedUntil = 0;
 let currentUserBannedUntil = 0;
 
 let lastMessageTime = 0;
-const MESSAGE_COOLDOWN = 2000; 
+const MESSAGE_COOLDOWN = 2000;
 let historyPageOffset = 0;
 let isLoadingMore = false;
-let initialSnapshotReceived = false; 
-let isFirstLoad = true; 
+let initialSnapshotReceived = false;
+let isFirstLoad = true;
 
 let dbPublicMessages = [];
 let dbPrivateMessages = [];
-let dbHistoricalMessages = []; 
+let dbHistoricalMessages = [];
 let localPendingQueue = [];
 
-let allRegisteredUsers = []; 
-let localUsersCache = [];      
+let allRegisteredUsers = [];
+let localUsersCache = [];
 
 let activeSuggestionIndex = 0;
-let currentMentionTriggerIdx = -1; 
-let currentMentionType = ""; 
+let currentMentionTriggerIdx = -1;
+let currentMentionType = "";
 
 let isEditingMode = false;
 let editingMessageId = null;
 let editingCollectionTarget = "messages";
-let allMessagesLoaded = false; 
+let allMessagesLoaded = false;
 
-let lastActionLog = null; 
+let lastActionLog = null;
 let activeMuteInterval = null;
 let ephemeralSystemMessages = [];
 let processedOmoggleRedirects = new Set();
@@ -485,10 +478,10 @@ function parseDurationString(str) {
   if (!str) return null;
   const match = str.trim().match(/^(\d+)(s|m|h|d|w|mo|y)$/i);
   if (!match) return null;
-  
+
   const value = parseInt(match[1], 10);
   const unit = match[2].toLowerCase();
-  
+
   switch (unit) {
     case 's': return value * 1000;                        // Seconds
     case 'm': return value * 60 * 1000;                   // Minutes
@@ -594,22 +587,22 @@ function handleBannedUserDisplay() {
   const scroller = document.getElementById("message-scroller");
   const inputRow = document.querySelector(".input-row");
   if(inputRow) inputRow.style.display = "none";
-  
+
   if(scroller) {
     let textSummaryString = "";
     const deltaMs = currentUserBannedUntil - Date.now();
-    
+
     if (deltaMs > 10 * 365 * 24 * 60 * 60 * 1000) {
       textSummaryString = "You are permanently banned.";
     } else {
       const parsedTotalMinutes = Math.ceil(deltaMs / (60 * 1000));
       const hoursLeft = Math.floor(parsedTotalMinutes / 60);
       const minutesLeft = parsedTotalMinutes % 60;
-      
+
       let segments = [];
       if (hoursLeft > 0) segments.push(`${hoursLeft} hour${hoursLeft !== 1 ? 's' : ''}`);
       if (minutesLeft > 0) segments.push(`${minutesLeft} minute${minutesLeft !== 1 ? 's' : ''}`);
-      
+
       textSummaryString = `You are banned for ${segments.length > 0 ? segments.join(" and ") : "a few seconds"}.`;
     }
 
@@ -815,14 +808,14 @@ async function startChat(user) {
       startCooldownTimer(currentUserMutedUntil);
       return;
     }
-    
+
     if (isEditingMode) {
       try {
         const { error } = await supabase
           .from(editingCollectionTarget)
           .update({ text: textToSend })
           .eq("id", editingMessageId);
-          
+
         if (error) throw error;
       } catch (err) {
         console.error("Error writing message update modification:", err);
@@ -831,16 +824,16 @@ async function startChat(user) {
       editingMessageId = null;
       btn.textContent = "Send";
       input.value = "";
-      return; 
+      return;
     }
 
     const now = Date.now();
-    if (now - lastMessageTime < MESSAGE_COOLDOWN) return; 
+    if (now - lastMessageTime < MESSAGE_COOLDOWN) return;
 
     input.value = "";
     lastMessageTime = now;
     clearEphemeralSystemMessages();
-    
+
     startCooldownTimer();
     closePopover();
 
@@ -859,10 +852,10 @@ async function startChat(user) {
         const durationStr = segments[2];
         const durationMs = parseDurationString(durationStr);
         const reason = segments.slice(3).join(" ") || "No explicit reason logged.";
-        
-        if (!targetUser || !durationMs) { 
-          showLocalSystemMessage("Syntax: /mute @username [time, e.g., 45s/30m/4h] [reason]", true); 
-          return; 
+
+        if (!targetUser || !durationMs) {
+          showLocalSystemMessage("Syntax: /mute @username [time, e.g., 45s/30m/4h] [reason]", true);
+          return;
         }
         await supabase.from("users").update({ mutedUntil: Date.now() + durationMs }).eq("id", targetUser.id);
         showLocalSystemMessage(`Muted user @${targetUser.username} for ${durationStr}. Reason: ${reason}`, false);
@@ -926,10 +919,10 @@ async function startChat(user) {
         const durationStr = segments[2];
         const durationMs = parseDurationString(durationStr);
         const reason = segments.slice(3).join(" ") || "No explicit reason logged.";
-        
-        if (!targetUser || !durationMs) { 
-          showLocalSystemMessage("Syntax: /ban @username [time, e.g., 10s/2h/15d/3mo] [reason]", true); 
-          return; 
+
+        if (!targetUser || !durationMs) {
+          showLocalSystemMessage("Syntax: /ban @username [time, e.g., 10s/2h/15d/3mo] [reason]", true);
+          return;
         }
         await supabase.from("users").update({ bannedUntil: Date.now() + durationMs }).eq("id", targetUser.id);
         showLocalSystemMessage(`Banned user @${targetUser.username} for ${durationStr}. Reason: ${reason}`, false);
@@ -1093,12 +1086,12 @@ async function startChat(user) {
     };
 
     localPendingQueue.push(pendingMsgData);
-    renderMessages(true); 
+    renderMessages(true);
 
     try {
       if (targetUsernames.length > 0) {
         let participantIds = [user.id];
-        
+
         targetUsernames.forEach(uname => {
           const matchedUser = localUsersCache.find(u => u.username.toLowerCase() === uname);
           if (matchedUser && !participantIds.includes(matchedUser.id)) {
@@ -1241,13 +1234,13 @@ async function listenForNewMessages(user) {
         const idx = dbPrivateMessages.findIndex(m => m.id === updatedWhisper.id);
         if (idx !== -1) {
           dbPrivateMessages[idx] = { ...updatedWhisper, isWhisper: true, isSystemMessage: updatedWhisper.isOmoggleInvite === true };
-          
+
           if (updatedWhisper.isOmoggleInvite && updatedWhisper.inviteStatus === "accepted") {
             const sessionRedirectToken = `omoggle_redirected_${updatedWhisper.id}`;
             if (!processedOmoggleRedirects.has(updatedWhisper.id)) {
               processedOmoggleRedirects.add(updatedWhisper.id);
               sessionStorage.setItem(sessionRedirectToken, "true");
-              
+
               const roleIdentityString = user.id === updatedWhisper.senderId ? "host" : "guest";
               setTimeout(() => {
                 if (window.location.pathname.includes('/omoggle/')) return;
@@ -1274,7 +1267,7 @@ function renderMessages(forceScrollDown = false) {
 
   const scroller = document.getElementById("message-scroller");
   if (!scroller) return;
-  
+
   const isPinnedToBottom = scroller.scrollHeight - scroller.clientHeight <= scroller.scrollTop + 30;
   const cachedScrollTop = scroller.scrollTop;
 
@@ -1292,7 +1285,7 @@ function renderMessages(forceScrollDown = false) {
   const hasRegularMessages = regularMessages.some(msg => !msg.isSystemMessage) || localPendingQueue.some(msg => !msg.isSystemMessage);
   const visibleEphemeralMessages = hasRegularMessages ? [] : ephemeralSystemMessages;
   let allMessages = [...visibleEphemeralMessages, ...regularMessages];
-  
+
   const seenIds = new Set();
   allMessages = allMessages.filter(msg => {
     const msgId = msg.id || msg.clientSideId;
@@ -1313,7 +1306,7 @@ function renderMessages(forceScrollDown = false) {
 
   allMessages.forEach(msg => displayMessage(scroller, msg));
   localPendingQueue.forEach(pendingMsg => displayMessage(scroller, pendingMsg));
-  
+
   if (isFirstLoad && dbPublicMessages.length > 0) {
     scroller.scrollTop = scroller.scrollHeight;
     isFirstLoad = false;
@@ -1328,13 +1321,13 @@ function displayMessage(scroller, msgData) {
   const div = document.createElement("div");
   div.className = "msg-block" + (msgData.isPending ? " pending" : "");
   if(msgData.clientSideId) div.id = msgData.clientSideId;
-  
+
   const time = msgData.timestamp ? new Date(msgData.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Sending...";
-  
+
   let statusBadgeHTML = "";
   if (msgData.role === "admin") statusBadgeHTML = `<span class="badge-admin">Admin</span>`;
   if (msgData.role === "owner") statusBadgeHTML = `<span class="badge-owner">Owner</span>`;
-  
+
   const whisperTag = msgData.isWhisper ? `<span style="color: #a855f7; font-size: 0.75rem; margin-left: 8px; background: rgba(168,85,247,0.12); padding: 2px 7px; border-radius: 99px; font-weight: 600; border: 1px solid rgba(168,85,247,0.2);">Whisper</span>` : "";
 
   const safeUsername = msgData.username || "User";
@@ -1364,7 +1357,7 @@ function displayMessage(scroller, msgData) {
         `;
       } else {
         inviteContextLineText = `<p style="color:#6c63ff; font-weight:600;">Sent Omoggle duel request to your opponent (Pending...)</p>`;
-        internalDuelPanelHTML = ""; 
+        internalDuelPanelHTML = "";
       }
     } else if (msgData.inviteStatus === "accepted") {
       inviteContextLineText = `<p style="color:#10b981; font-weight:600;">Omoggle duel match accepted!</p>`;
@@ -1438,14 +1431,14 @@ function displayMessage(scroller, msgData) {
     editBtn.onclick = () => {
       const messageInput = document.getElementById("message-input");
       const sendButtonElement = document.getElementById("send-message-btn");
-      
+
       isEditingMode = true;
       editingMessageId = msgData.id;
       editingCollectionTarget = dataCollectionTargetStr;
-      
+
       messageInput.value = msgData.text;
       sendButtonElement.textContent = "Edit";
-      
+
       messageInput.focus();
       messageInput.selectionStart = messageInput.selectionEnd = messageInput.value.length;
     };
@@ -1492,7 +1485,7 @@ function setupAutocompleteEngine(input) {
   input.addEventListener("input", () => {
     const val = input.value;
     const selectionStart = input.selectionStart;
-    
+
     if (!val) {
       closePopover();
       return;
@@ -1567,11 +1560,11 @@ function setupAutocompleteEngine(input) {
     const lastAtIdx = val.lastIndexOf("@", selectionStart - 1);
     if (lastAtIdx !== -1 && (lastAtIdx === 0 || /\s/.test(val[lastAtIdx - 1]))) {
       const searchStr = val.substring(lastAtIdx + 1, selectionStart).toLowerCase();
-      
+
       if (!/\s/.test(searchStr)) {
         currentMentionTriggerIdx = lastAtIdx;
         const filtered = getMentionSuggestionItems(searchStr);
-        
+
         if (filtered.length > 0) {
           showMentions(filtered, "general-mention");
           return;
@@ -1620,20 +1613,20 @@ function showCommands(cmds) {
   const popover = document.getElementById("suggestions-popover");
   activeSuggestionIndex = 0;
   popover.innerHTML = "";
-  
+
   cmds.forEach((c, idx) => {
     const div = document.createElement("div");
     div.className = "suggestion-item" + (idx === 0 ? " selected" : "");
     div.innerHTML = `<span class="item-icon">/</span> <strong>${c.name}</strong> &nbsp; <span style="color:var(--text-muted); font-size:0.8rem;">${c.desc}</span>`;
-    
+
     div.onclick = (e) => {
-      e.stopPropagation(); 
+      e.stopPropagation();
       const input = document.getElementById("message-input");
       input.value = c.name + " ";
       input.focus();
       input.selectionStart = input.selectionEnd = input.value.length;
       closePopover();
-      input.dispatchEvent(new Event("input")); 
+      input.dispatchEvent(new Event("input"));
     };
     popover.appendChild(div);
   });
@@ -1654,9 +1647,9 @@ function showMentions(users, type) {
       <div class="item-avatar" style="background: linear-gradient(135deg, ${getGradient(u.username)});">${u.avatar || u.username[0].toUpperCase()}</div>
       <strong>${displayName}</strong>
     `;
-    
+
     div.onclick = (e) => {
-      e.stopPropagation(); 
+      e.stopPropagation();
       const input = document.getElementById("message-input");
       const currentVal = input.value;
       let newCursorPos = 0;
@@ -1701,7 +1694,7 @@ function closePopover() {
 
 async function handleScrollPagination() {
   const scroller = document.getElementById("message-scroller");
-  
+
   if (scroller.scrollTop === 0 && !isLoadingMore && !allMessagesLoaded) {
     isLoadingMore = true;
 
@@ -1719,7 +1712,7 @@ async function handleScrollPagination() {
         .select("*")
         .order("timestamp", { ascending: false })
         .range(historyPageOffset, historyPageOffset + 19);
-      
+
       const existingBanner = document.getElementById("history-loading-banner");
       if (existingBanner) existingBanner.remove();
 
@@ -1731,7 +1724,7 @@ async function handleScrollPagination() {
         historyPageOffset += olderMessages.length;
         const fetchedHistorical = olderMessages.map(m => ({ ...m, isWhisper: false, isSystemMessage: m.role === "system" })).reverse();
         dbHistoricalMessages = [...fetchedHistorical, ...dbHistoricalMessages];
-        
+
         renderMessages();
         scroller.scrollTop = scroller.scrollHeight - initialScrollHeight;
       }

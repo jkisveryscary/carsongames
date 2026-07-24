@@ -4,9 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Carson Games - Omoggle</title>
+  <script src="../assets/theme-loader.js"></script>
   <link rel="stylesheet" href="../style.css">
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@700;800&family=Plus+Jakarta+Sans:wght=500;600;700&display=swap" rel="stylesheet">
-  
+
   <script src="peerjs.min.js"></script>
 
   <style>
@@ -84,7 +85,7 @@
 
       <div id="stage-match" class="view-stage">
         <div id="countdown" class="timer-banner">15s</div>
-        
+
         <div class="battleground">
           <div id="slot-user" class="player-slot">
             <span class="player-label">You</span>
@@ -253,17 +254,17 @@
         .select("username")
         .eq("id", user.id)
         .single();
-        
+
       currentUserProfile.username = userSnap ? userSnap.username : user.email.split('@')[0];
 
       authButtonContainer.innerHTML = '<a id="logout-btn" href="#" class="nav-auth-btn">Logout</a>';
       authButtonContainer.style.display = '';
       const logoutBtn = document.getElementById('logout-btn');
       if (logoutBtn) {
-        logoutBtn.onclick = async () => { 
+        logoutBtn.onclick = async () => {
           safelyStopCameraTracks();
-          await supabase.auth.signOut(); 
-          window.location.reload(); 
+          await supabase.auth.signOut();
+          window.location.reload();
         };
       }
 
@@ -281,10 +282,10 @@
 
     supabase.auth.onAuthStateChange(async (event, session) => {
       const user = session?.user || null;
-      if (!user) { 
-        authButtonContainer.innerHTML = '<a href="../login/" class="nav-auth-btn">Sign In</a>'; 
-        authButtonContainer.style.display = ''; 
-        return; 
+      if (!user) {
+        authButtonContainer.innerHTML = '<a href="../login/" class="nav-auth-btn">Sign In</a>';
+        authButtonContainer.style.display = '';
+        return;
       }
       await renderAuthState(user);
     });
@@ -306,15 +307,15 @@
 
     /* ── MATCHMAKING CORE PIPELINE ───────────────────────── */
     async function startMatchmaking() {
-      if (privateRoomId) return; 
-      if (inQueueProcess || !myPeerId) return; 
+      if (privateRoomId) return;
+      if (inQueueProcess || !myPeerId) return;
       inQueueProcess = true;
 
       const videoAcquired = await safeAcquireCameraStream();
-      if (!videoAcquired) { 
-        lobbyMsg.innerText = "Camera initialization failed. Please verify browser settings."; 
-        inQueueProcess = false; 
-        return; 
+      if (!videoAcquired) {
+        lobbyMsg.innerText = "Camera initialization failed. Please verify browser settings.";
+        inQueueProcess = false;
+        return;
       }
 
       switchStage(stageSearching);
@@ -372,9 +373,9 @@
 
         if (newQueueItem) {
           activeQueueDocRef = newQueueItem.id;
-          
+
           if (queueListenerUnsubscribe) queueListenerUnsubscribe.unsubscribe();
-          
+
           // Stream structural tracking listener
           queueListenerUnsubscribe = supabase
             .channel(`public:showdown_queue:id=eq.${newQueueItem.id}`)
@@ -388,8 +389,8 @@
             })
             .subscribe();
         }
-      } catch (err) { 
-        cancelSearch(); 
+      } catch (err) {
+        cancelSearch();
       }
       inQueueProcess = false;
     }
@@ -438,7 +439,7 @@
       switchStage(stageMatch);
       countdownText.style.display = 'block'; resultText.style.display = 'none'; btnNext.style.display = 'none'; btnExit.style.display = 'none';
       currentScore = 50; scaleNeedle.style.left = '50%';
-      
+
       if (privateRoomId) {
         btnNext.style.setProperty("display", "none", "important");
       }
@@ -490,13 +491,13 @@
     }
 
     function clearLoops() { clearInterval(timerInterval); clearInterval(matchInterval); }
-    
-    function cleanExit() { 
-      if (currentConnection) currentConnection.close(); 
-      clearLoops(); 
+
+    function cleanExit() {
+      if (currentConnection) currentConnection.close();
+      clearLoops();
       safelyStopCameraTracks();
-      window.location.href = privateRoomId ? "../chat/" : "#"; 
-      switchStage(stageLobby); 
+      window.location.href = privateRoomId ? "../chat/" : "#";
+      switchStage(stageLobby);
     }
 
     btnStart.addEventListener('click', startMatchmaking);

@@ -4,13 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Carson Games - Login</title>
+  <script src="../assets/theme-loader.js"></script>
   <link rel="stylesheet" href="../style.css">
-  <script>
-    const themeName = localStorage.getItem('carson_theme');
-    if (themeName && themeName !== 'default') {
-      document.documentElement.classList.add('theme-' + themeName);
-    }
-  </script>
 
   <style>
     body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: radial-gradient(circle at top, rgba(108,99,255,0.12), transparent 45%), var(--bg); color: var(--text); font-family: var(--font); }
