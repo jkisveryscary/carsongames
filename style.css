@@ -142,7 +142,7 @@ html.theme-stars, body.theme-stars {
   --text-muted: #aab7d4;
   --accent: #818cf8;
   --accent-glow: rgba(129, 140, 248, 0.22);
-  --theme-bg-image: url("/assets/stars.png");
+  --theme-bg-image: url("/assets/stars.svg");
 }
 
 html.theme-lightning, body.theme-lightning {
@@ -194,7 +194,7 @@ html.theme-blue-spots, body.theme-blue-spots {
   --text-muted: #a7bad5;
   --accent: #60a5fa;
   --accent-glow: rgba(96, 165, 250, 0.22);
-  --theme-bg-image: url("/assets/blue-spots.png");
+  --theme-bg-image: url("/assets/blue-spots.svg");
 }
 
 html.theme-white-spots, body.theme-white-spots {
