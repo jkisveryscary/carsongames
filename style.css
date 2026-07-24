@@ -38,8 +38,12 @@ body {
   position: relative;
 }
 
+body > :not(script):not(style) {
+  z-index: 1;
+}
+
 /* ── AMBIENT BACKGROUND & NOISE OVERLAY ───────────────── */
-/* Fixed z-index to -1 so it stays behind all content */
+/* Fixed z-index keeps the ambient background beneath all content */
 body::before {
   content: "";
   position: fixed;
