@@ -50,7 +50,7 @@ body::before {
   background-size: auto;
   background-attachment: fixed;
   pointer-events: none;
-  z-index: -1;
+  z-index: 0;
 }
 
 /* ── DYNAMIC THEME OVERRIDES (Root-relative paths) ────── */
