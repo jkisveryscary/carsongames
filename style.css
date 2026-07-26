@@ -275,7 +275,9 @@ header {
   padding: 1rem 2rem;
   position: sticky;
   top: 0;
-  z-index: 999;
+  z-index: 10000; /* Increased to ensure it stays on top of all page elements */
+  height: 100px;  /* Added explicit height */
+  box-sizing: border-box; /* Ensures padding doesn't push the height past 100px */
 }
 
 .nav-container {
@@ -284,6 +286,7 @@ header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  height: 100%; /* Spans full height of parent header */
 }
 
 .logo {
