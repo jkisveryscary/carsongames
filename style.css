@@ -273,9 +273,17 @@ header {
   -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--border);
   padding: 1rem 2rem;
-  position: sticky;
+  
+  /* Fixed positioning to break out of parent container clipping */
+  position: fixed;
   top: 0;
-  z-index: 10000; /* Increased layer height so it stays on top */
+  left: 0;
+  width: 100%;
+  box-sizing: border-box;
+  
+  /* High z-index & isolated stacking context to force top layer */
+  z-index: 999999;
+  isolation: isolate;
 }
 
 .nav-container {
