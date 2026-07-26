@@ -38,10 +38,6 @@ body {
   position: relative;
 }
 
-body > :not(script):not(style) {
-  z-index: 1;
-}
-
 /* ── AMBIENT BACKGROUND & NOISE OVERLAY ───────────────── */
 /* Fixed z-index keeps the ambient background beneath all content */
 body::before {
@@ -273,17 +269,11 @@ header {
   -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--border);
   padding: 1rem 2rem;
-  
-  /* Fixed positioning to break out of parent container clipping */
   position: fixed;
   top: 0;
   left: 0;
-  width: 100%;
-  box-sizing: border-box;
-  
-  /* High z-index & isolated stacking context to force top layer */
-  z-index: 999999;
-  isolation: isolate;
+  right: 0;
+  z-index: 9999;
 }
 
 .nav-container {
@@ -469,7 +459,7 @@ footer {
 }
 
 @keyframes slideInRight {
-  from { opacity: 0; transform: translateX(12px); }
+  from { opacity: 0; transform: translateX(-12px); }
   to   { opacity: 1; transform: none; }
 }
 
@@ -483,8 +473,7 @@ footer {
   50% { box-shadow: 0 0 40px rgba(108, 99, 255, 0.25); }
 }
 
-/* Apply entrance animations */
-header { animation: slideInLeft 600ms var(--ease) both; }
+/* Apply entrance animations (header animation removed to prevent stacking context breaks) */
 .hero { animation: fadeUp 600ms var(--ease) both; }
 .grid { animation: fadeUp 600ms var(--ease) both; }
 .chat-layout { animation: fadeUp 480ms var(--ease) both; }
