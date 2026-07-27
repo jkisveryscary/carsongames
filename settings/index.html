@@ -49,13 +49,17 @@
       border: 2px solid var(--border);
       background-size: cover;
       background-position: center;
-      transition: all 0.25s var(--ease);
+      transition: border-color 0.25s var(--ease), box-shadow 0.25s var(--ease);
+      box-sizing: border-box;
     }
-    .background-thumb-card:hover .thumb-canvas, .background-thumb-card.active .thumb-canvas {
+    
+    /* PREVENT LAYOUT SHIFT ON HOVER/ACTIVE */
+    .background-thumb-card:hover .thumb-canvas, 
+    .background-thumb-card.active .thumb-canvas {
       border-color: var(--accent);
-      transform: scale(1.05);
-      box-shadow: 0 0 15px rgba(108, 99, 255, 0.3);
+      box-shadow: 0 0 12px rgba(108, 99, 255, 0.5);
     }
+
     .thumb-label {
       margin-top: 0.5rem;
       font-size: 0.75rem;
@@ -189,6 +193,7 @@
       document.body.className = 'theme-' + localThemeCached;
     }
 
+    /* UPDATED IMAGE PATHS FROM /assets/ TO ../assets/ */
     const THEME_DATA_MAP = [
       { id: 'default', type: 'color', val: '#06060c', label: 'default' },
       { id: 'red', type: 'color', val: '#1c0505', label: 'red' },
@@ -197,10 +202,10 @@
       { id: 'green', type: 'color', val: '#03140a', label: 'green' },
       { id: 'blue', type: 'color', val: '#030a1c', label: 'blue' },
       { id: 'purple', type: 'color', val: '#0f031c', label: 'purple' },
-      { id: 'stars', type: 'img', val: '/assets/stars.svg', label: 'stars' },
-      { id: 'teal-magenta', type: 'img', val: '/assets/teal-magenta.png', label: 'teal + magenta' },
-      { id: 'blue-pink', type: 'img', val: '/assets/blue-pink.png', label: 'blue + pink' },
-      { id: 'white-spots', type: 'img', val: '/assets/white-spots.png', label: 'white spots' }
+      { id: 'stars', type: 'img', val: '../assets/stars.svg', label: 'stars' },
+      { id: 'teal-magenta', type: 'img', val: '../assets/teal-magenta.png', label: 'teal + magenta' },
+      { id: 'blue-pink', type: 'img', val: '../assets/blue-pink.png', label: 'blue + pink' },
+      { id: 'white-spots', type: 'img', val: '../assets/white-spots.png', label: 'white spots' }
     ];
 
     const renderSettingsInterface = async (user) => {
