@@ -38,6 +38,10 @@ body {
   position: relative;
 }
 
+body > :not(script):not(style) {
+  z-index: 1;
+}
+
 /* ── AMBIENT BACKGROUND & NOISE OVERLAY ───────────────── */
 /* Fixed z-index keeps the ambient background beneath all content */
 body::before {
@@ -269,11 +273,9 @@ header {
   -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--border);
   padding: 1rem 2rem;
-  position: fixed;
+  position: sticky;
   top: 0;
-  left: 0;
-  right: 0;
-  z-index: 9999;
+  z-index: 999;
 }
 
 .nav-container {
@@ -459,7 +461,7 @@ footer {
 }
 
 @keyframes slideInRight {
-  from { opacity: 0; transform: translateX(-12px); }
+  from { opacity: 0; transform: translateX(12px); }
   to   { opacity: 1; transform: none; }
 }
 
@@ -473,7 +475,8 @@ footer {
   50% { box-shadow: 0 0 40px rgba(108, 99, 255, 0.25); }
 }
 
-/* Apply entrance animations (header animation removed to prevent stacking context breaks) */
+/* Apply entrance animations */
+header { animation: slideInLeft 600ms var(--ease) both; }
 .hero { animation: fadeUp 600ms var(--ease) both; }
 .grid { animation: fadeUp 600ms var(--ease) both; }
 .chat-layout { animation: fadeUp 480ms var(--ease) both; }
@@ -532,4 +535,3 @@ footer {
   .proxy-wrapper { padding: 0; }
   .browser-bar { position: fixed; top: 64px; left: 0; right: 0; border-radius: 0; margin: 0; }
   .frame-viewport { min-height: calc(100vh - 64px - 16px); border-radius: 0; }
-}
