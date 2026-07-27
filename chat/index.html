@@ -12,10 +12,10 @@
     /* ── THEME CONFIGURATION ──────────────────────────────── */
     :root {
       --bg: #06060c;
-      --surface: #0c0d19;
-      --card: #121426;
-      --card-hover: #181b33;
-      --border: rgba(255, 255, 255, 0.06);
+      --surface: rgba(12, 13, 25, 0.7);
+      --card: rgba(18, 20, 38, 0.65);
+      --card-hover: rgba(24, 27, 51, 0.8);
+      --border: rgba(255, 255, 255, 0.08);
       --border-focus: rgba(124, 58, 237, 0.4);
       --text: #f1f5f9;
       --text-muted: #64748b;
@@ -46,6 +46,30 @@
       flex-direction: column;
       overflow: hidden;
       -webkit-font-smoothing: antialiased;
+      position: relative;
+    }
+
+    /* ── ANIMATED DYNAMIC BACKGROUND & TINT OVERLAY ────────── */
+    .chat-bg-layer {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      background-image: url('../assets/stars.svg'); /* Update image path if needed */
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      animation: bgBlurAndTint 1.2s var(--ease) forwards;
+    }
+
+    @keyframes bgBlurAndTint {
+      0% {
+        filter: blur(0px) brightness(1);
+        transform: scale(1);
+      }
+      100% {
+        filter: blur(10px) brightness(0.4); /* Blur and dark tint happen at the same time */
+        transform: scale(1.03); /* Subtle scaling prevents blurry white edges */
+      }
     }
 
     header {
@@ -198,7 +222,8 @@
       height: calc(100dvh - 72px);
       width: 100vw;
       overflow: hidden;
-      background: var(--bg);
+      position: relative;
+      z-index: 1;
     }
 
     .chat-main {
@@ -208,6 +233,10 @@
       display: flex;
       flex-direction: column;
       background: var(--card);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-left: 1px solid var(--border);
+      border-right: 1px solid var(--border);
       overflow: hidden;
       position: relative;
     }
@@ -220,6 +249,7 @@
       padding: 0.95rem 1.5rem;
       border-bottom: 1px solid var(--border);
       flex-shrink: 0;
+      background: rgba(12, 13, 25, 0.4);
     }
 
     .chat-meta { display: flex; align-items: center; gap: 0.75rem; }
@@ -235,7 +265,30 @@
       -webkit-overflow-scrolling: touch;
     }
 
-    .msg-block { display: flex; gap: 1rem; align-items: flex-start; transition: opacity 0.2s ease; position: relative; }
+    /* ── MESSAGES BLUR-IN ANIMATION ──────────────────────── */
+    .msg-block { 
+      display: flex; 
+      gap: 1rem; 
+      align-items: flex-start; 
+      transition: opacity 0.2s ease; 
+      position: relative; 
+      /* Delayed animation: starts at 0.9s (after background blur/tint starts) */
+      animation: messagesBlurIn 0.8s var(--ease) 0.9s both; 
+    }
+
+    @keyframes messagesBlurIn {
+      0% {
+        opacity: 0;
+        filter: blur(8px);
+        transform: translateY(10px);
+      }
+      100% {
+        opacity: 1;
+        filter: blur(0px);
+        transform: translateY(0);
+      }
+    }
+
     .msg-block.pending { opacity: 0.4; filter: brightness(0.8); }
 
     .msg-avatar { width: 44px; height: 44px; border-radius: 50%; background: var(--card); flex-shrink: 0; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; color: var(--accent); font-family: var(--font-display); font-weight: 800; }
@@ -358,11 +411,13 @@
     .chat-main { animation: slideInRight 500ms var(--ease) both; }
 
     @media (prefers-reduced-motion: reduce) {
-      header, .chat-layout, .chat-main, .cooldown-text { animation: none !important; }
+      header, .chat-layout, .chat-main, .cooldown-text, .chat-bg-layer, .msg-block { animation: none !important; }
     }
   </style>
 </head>
 <body>
+
+  <div class="chat-bg-layer" id="chat-bg-layer"></div>
 
   <header>
     <div class="nav-container">
