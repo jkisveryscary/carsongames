@@ -39,11 +39,11 @@ body {
 }
 
 body > :not(script):not(style) {
+  position: relative;
   z-index: 1;
 }
 
 /* ── AMBIENT BACKGROUND & NOISE OVERLAY ───────────────── */
-/* Fixed z-index keeps the ambient background beneath all content */
 body::before {
   content: "";
   position: fixed;
@@ -51,13 +51,12 @@ body::before {
   background-image: var(--theme-bg-image);
   background-position: center;
   background-repeat: repeat;
-  background-size: auto;
-  background-attachment: fixed;
+  background-size: cover;
   pointer-events: none;
-  z-index: 0;
+  z-index: -1;
 }
 
-/* ── DYNAMIC THEME OVERRIDES (Root-relative paths) ────── */
+/* ── DYNAMIC THEME OVERRIDES (Relative paths for GitHub Pages) ────── */
 html.theme-red, body.theme-red {
   --bg: #120407;
   --surface: #1a0b10;
@@ -146,7 +145,7 @@ html.theme-stars, body.theme-stars {
   --text-muted: #aab7d4;
   --accent: #818cf8;
   --accent-glow: rgba(129, 140, 248, 0.22);
-  --theme-bg-image: url("/assets/stars.svg");
+  --theme-bg-image: url("assets/stars.svg");
 }
 
 html.theme-lightning, body.theme-lightning {
@@ -159,7 +158,7 @@ html.theme-lightning, body.theme-lightning {
   --text-muted: #a7b6d6;
   --accent: #60a5fa;
   --accent-glow: rgba(96, 165, 250, 0.22);
-  --theme-bg-image: url("/assets/lightning.png");
+  --theme-bg-image: url("assets/lightning.png");
 }
 
 html.theme-teal-magenta, body.theme-teal-magenta {
@@ -172,7 +171,7 @@ html.theme-teal-magenta, body.theme-teal-magenta {
   --text-muted: #a3c7d2;
   --accent: #2dd4bf;
   --accent-glow: rgba(45, 212, 191, 0.22);
-  --theme-bg-image: url("/assets/teal-magenta.png");
+  --theme-bg-image: url("assets/teal-magenta.png");
 }
 
 html.theme-blue-pink, body.theme-blue-pink {
@@ -185,7 +184,7 @@ html.theme-blue-pink, body.theme-blue-pink {
   --text-muted: #b6c1de;
   --accent: #f472b6;
   --accent-glow: rgba(244, 114, 182, 0.22);
-  --theme-bg-image: url("/assets/blue-pink.png");
+  --theme-bg-image: url("assets/blue-pink.png");
 }
 
 html.theme-blue-spots, body.theme-blue-spots {
@@ -198,7 +197,7 @@ html.theme-blue-spots, body.theme-blue-spots {
   --text-muted: #a7bad5;
   --accent: #60a5fa;
   --accent-glow: rgba(96, 165, 250, 0.22);
-  --theme-bg-image: url("/assets/blue-spots.svg");
+  --theme-bg-image: url("assets/blue-spots.svg");
 }
 
 html.theme-white-spots, body.theme-white-spots {
@@ -211,7 +210,7 @@ html.theme-white-spots, body.theme-white-spots {
   --text-muted: #b8bcc7;
   --accent: #e5e7eb;
   --accent-glow: rgba(229, 231, 235, 0.18);
-  --theme-bg-image: url("/assets/white-spots.png");
+  --theme-bg-image: url("assets/white-spots.png");
 }
 
 html.theme-nebula, body.theme-nebula {
@@ -224,7 +223,7 @@ html.theme-nebula, body.theme-nebula {
   --text-muted: #a8b5d9;
   --accent: #a855f7;
   --accent-glow: rgba(168, 85, 247, 0.22);
-  --theme-bg-image: url("/assets/nebula.svg");
+  --theme-bg-image: url("assets/nebula.svg");
 }
 
 html.theme-cosmic-grid, body.theme-cosmic-grid {
@@ -237,7 +236,7 @@ html.theme-cosmic-grid, body.theme-cosmic-grid {
   --text-muted: #a4bad9;
   --accent: #22d3ee;
   --accent-glow: rgba(34, 211, 238, 0.22);
-  --theme-bg-image: url("/assets/cosmic-grid.svg");
+  --theme-bg-image: url("assets/cosmic-grid.svg");
 }
 
 html.theme-arcade-neon, body.theme-arcade-neon {
@@ -250,7 +249,7 @@ html.theme-arcade-neon, body.theme-arcade-neon {
   --text-muted: #c2b0da;
   --accent: #f472b6;
   --accent-glow: rgba(244, 114, 182, 0.22);
-  --theme-bg-image: url("/assets/arcade-neon.svg");
+  --theme-bg-image: url("assets/arcade-neon.svg");
 }
 
 html.theme-cyber-circuit, body.theme-cyber-circuit {
@@ -263,7 +262,7 @@ html.theme-cyber-circuit, body.theme-cyber-circuit {
   --text-muted: #9dbdb8;
   --accent: #2dd4bf;
   --accent-glow: rgba(45, 212, 191, 0.22);
-  --theme-bg-image: url("/assets/cyber-circuit.svg");
+  --theme-bg-image: url("assets/cyber-circuit.svg");
 }
 
 /* ── NAV BAR Component ────────────────────────────────── */
@@ -273,9 +272,8 @@ header {
   -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--border);
   padding: 1rem 2rem;
-  position: sticky;
-  top: 0;
-  z-index: 999;
+  position: relative; /* Keeps the header in natural page flow above the UI */
+  z-index: 10;
 }
 
 .nav-container {
@@ -461,7 +459,7 @@ footer {
 }
 
 @keyframes slideInRight {
-  from { opacity: 0; transform: translateX(12px); }
+  from { opacity: 0; transform: translateX(-12px); }
   to   { opacity: 1; transform: none; }
 }
 
@@ -535,3 +533,4 @@ header { animation: slideInLeft 600ms var(--ease) both; }
   .proxy-wrapper { padding: 0; }
   .browser-bar { position: fixed; top: 64px; left: 0; right: 0; border-radius: 0; margin: 0; }
   .frame-viewport { min-height: calc(100vh - 64px - 16px); border-radius: 0; }
+}
