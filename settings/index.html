@@ -11,7 +11,6 @@
     /* ── DYNAMIC THEME CLASSES ── */
     body {
       transition: background 0.3s ease;
-      padding-top: 80px; /* Offset fixed header */
     }
 
     .settings-hero { text-align: center; padding: 4rem 2rem 2rem; }
@@ -198,10 +197,10 @@
       { id: 'green', type: 'color', val: '#03140a', label: 'green' },
       { id: 'blue', type: 'color', val: '#030a1c', label: 'blue' },
       { id: 'purple', type: 'color', val: '#0f031c', label: 'purple' },
-      { id: 'stars', type: 'img', val: '../assets/stars.svg', label: 'stars' },
-      { id: 'teal-magenta', type: 'img', val: '../assets/teal-magenta.png', label: 'teal + magenta' },
-      { id: 'blue-pink', type: 'img', val: '../assets/blue-pink.png', label: 'blue + pink' },
-      { id: 'white-spots', type: 'img', val: '../assets/white-spots.png', label: 'white spots' }
+      { id: 'stars', type: 'img', val: '/assets/stars.svg', label: 'stars' },
+      { id: 'teal-magenta', type: 'img', val: '/assets/teal-magenta.png', label: 'teal + magenta' },
+      { id: 'blue-pink', type: 'img', val: '/assets/blue-pink.png', label: 'blue + pink' },
+      { id: 'white-spots', type: 'img', val: '/assets/white-spots.png', label: 'white spots' }
     ];
 
     const renderSettingsInterface = async (user) => {
