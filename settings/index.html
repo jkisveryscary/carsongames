@@ -49,8 +49,11 @@
       border: 2px solid var(--border);
       background-size: cover;
       background-position: center;
-      transition: border-color 0.25s var(--ease), box-shadow 0.25s var(--ease);
+      transition: border-color 0.25s var(--ease), box-shadow 0.25s var(--ease), outline 0.25s var(--ease);
       box-sizing: border-box;
+      outline: 0 solid transparent;
+      outline-offset: -2px;
+      transform: translateZ(0);
     }
     
     /* PREVENT LAYOUT SHIFT ON HOVER/ACTIVE */
