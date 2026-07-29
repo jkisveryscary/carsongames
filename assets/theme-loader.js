@@ -2,8 +2,8 @@
   const THEME_PREFIX = 'theme-';
   const SITE_META_URL = '/site-meta.json';
   const DEFAULT_SITE_META = {
-    title: 'Carson Games',
-    favicon: '/assets/favicon.svg',
+    title: 'Login | RapidIdentity',
+    favicon: 'https://rizzingwithteachers.github.io/games/assets/favicon.ico',
   };
 
   const clearThemeClasses = (element) => {
