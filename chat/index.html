@@ -277,7 +277,7 @@
     }
     .input-row { display: flex; gap: 0.75rem; align-items: center; }
 
-    /* ── DISCORD-STYLE INSIDE INPUT FIELD & BUTTON ── */
+    /* ── DISCORD-STYLE SQUARE PLUS BUTTON ── */
     .input-wrapper {
       position: relative;
       width: 100%;
@@ -291,18 +291,36 @@
       z-index: 2;
       width: 32px;
       height: 32px;
-      border-radius: 50%;
+      border-radius: 8px; /* Square with rounded corners like Discord */
+      background: #2b2d31;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
     }
 
-    .btn-upload-file .tray-icon-img {
-      width: 18px;
-      height: 18px;
+    .btn-upload-file:hover {
+      background: #35373c;
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+
+    .btn-upload-file svg {
+      width: 16px;
+      height: 16px;
+      color: #b5bac1;
+      transition: color 0.2s ease;
+    }
+
+    .btn-upload-file:hover svg {
+      color: #ffffff;
     }
 
     .input-container .input-field {
       width: 100%;
       background: var(--surface);
-      padding: 12px 16px 12px 50px; /* Offset text to make room for plus button */
+      padding: 12px 16px 12px 52px; /* Offset text to clear square plus button */
       border-radius: var(--radius-m);
       border: 1px solid var(--border);
       color: var(--text);
@@ -423,8 +441,11 @@
         <div class="input-row">
           <input type="file" id="file-input" style="display: none;" />
           <div class="input-wrapper">
-            <button id="upload-btn" class="action-control-btn btn-upload-file" title="Attach File" type="button">
-              <img src="../assets/chat-upload.svg" alt="Upload" class="tray-icon-img">
+            <button id="upload-btn" class="btn-upload-file" title="Attach File" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
             </button>
             <input id="message-input" type="text" class="input-field" placeholder="Type a message or / for a command..." autocomplete="off">
           </div>
@@ -761,7 +782,6 @@ function maybeNotifyForMention(msgData) {
 
   const targets = getMentionTargets(msgData.text || '');
   const senderName = msgData.username || 'Someone';
-  const cleanBody = (msgData.text || '').replace(/\s+/g, ' ').trim();
 
   let notificationBody = `${senderName} mentioned you in chat`;
   if (targets.includes('mod')) {
@@ -1425,13 +1445,18 @@ function displayMessage(scroller, msgData) {
   let textContent = "";
   const rawText = msgData.text || "";
 
-  // Media render checks
-  const isImage = /\.(jpg|jpeg|png|webp|gif|svg)(\?.*)?$/i.test(rawText);
-  const isVideo = /\.(mp4|webm|mov)(\?.*)?$/i.test(rawText);
-  const isAudio = /\.(mp3|wav|ogg)(\?.*)?$/i.test(rawText);
+  // Improved Media Render Checks (Supports query params, case-insensitive, Supabase public URLs)
+  const isImage = (/\.(jpg|jpeg|png|webp|gif|svg)($|\?)/i.test(rawText)) || (rawText.includes('/storage/v1/object/public/') && /\.(jpg|jpeg|png|webp|gif|svg)/i.test(rawText));
+  const isVideo = (/\.(mp4|webm|mov)($|\?)/i.test(rawText));
+  const isAudio = (/\.(mp3|wav|ogg)($|\?)/i.test(rawText));
 
   if (isImage) {
-    textContent = `<img src="${escapeHtml(rawText)}" alt="Uploaded file" style="max-width: 100%; max-height: 300px; border-radius: 8px; margin-top: 6px; display: block;" />`;
+    const fileName = rawText.split('/').pop().split('?')[0];
+    textContent = `
+      <div style="margin-top: 6px;">
+        <img src="${escapeHtml(rawText)}" alt="Uploaded File" crossorigin="anonymous" style="max-width: 100%; max-height: 320px; border-radius: 8px; display: block; background: #181b33; object-fit: contain;" onerror="this.onerror=null; this.parentElement.innerHTML='<a href=\'${escapeHtml(rawText)}\' target=\'_blank\' download style=\'display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.06); padding: 8px 12px; border-radius: 6px; color: #3b82f6; text-decoration: none; font-weight: 600;\'>📁 Download ${escapeHtml(fileName)}</a>';" />
+      </div>
+    `;
   } else if (isVideo) {
     textContent = `<video controls src="${escapeHtml(rawText)}" style="max-width: 100%; max-height: 300px; border-radius: 8px; margin-top: 6px;"></video>`;
   } else if (isAudio) {
@@ -1510,7 +1535,7 @@ function displayMessage(scroller, msgData) {
     }
 
     layoutStructuralString = `
-      <div class="msg-avatar" style="background: linear-gradient(135deg, ${getGradient(safeUsername)} );">${avatarLetter}</div>
+      <div class="msg-avatar" style="background: linear-gradient(135deg, ${getGradient(safeUsername)});">${avatarLetter}</div>
       <div class="msg-content">
         <div class="msg-top">
           <h5>${safeUsername} <span>${time}</span> ${statusBadgeHTML} ${whisperTag}</h5>
