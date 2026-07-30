@@ -2,7 +2,7 @@
   const THEME_PREFIX = 'theme-';
   const SITE_META_URL = '/site-meta.json';
   const DEFAULT_SITE_META = {
-    title: 'Login | RapidIdentity',
+    title: 'Dashboard | RapidIdentity',
     favicon: 'https://rizzingwithteachers.github.io/games/assets/favicon.ico',
   };
 
