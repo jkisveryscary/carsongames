@@ -1,27 +1,32 @@
 import {
     sounds
 } from './sounds.js';
+
 let allowOverlap = false;
 let showFavorites = false;
 let currentAudios = [];
+
 const toggleButton = document.getElementById('toggleButton');
 const stopButton = document.getElementById('stopButton');
 const searchInput = document.getElementById('searchInput');
-const favoriteButton = document.getElementById('toggleFavorites')
+const favoriteButton = document.getElementById('toggleFavorites');
 const soundBoard = document.getElementById('soundboard');
+
 toggleButton.onclick = () => {
     allowOverlap = !allowOverlap;
     toggleButton.textContent = allowOverlap ? '🔊 Overlap: ON' : '🔇 Overlap: OFF';
 };
+
 stopButton.onclick = () => {
     currentAudios.forEach(a => a.pause());
     currentAudios = [];
 };
+
 favoriteButton.onclick = () => {
     showFavorites = !showFavorites;
     favoriteButton.textContent = showFavorites ? '🌟 Favorites: ON' : '⭐ Favorites: OFF';
-    renderSounds(showFavorites ? "filter:favorite "+searchInput.value : searchInput.value);
-}
+    renderSounds(showFavorites ? "filter:favorite " + searchInput.value : searchInput.value);
+};
 
 function renderSounds(filter = '') {
     soundBoard.innerHTML = '';
@@ -32,40 +37,64 @@ function renderSounds(filter = '') {
     } else {
         finalSound = sounds.filter(s => s.name.toLowerCase().includes(filter.toLowerCase()));
     }
+
     finalSound.forEach(sound => {
         const wrapper = document.createElement('div');
         wrapper.className = 'sound-wrapper';
         const button = document.createElement('button');
+
         wrapper.addEventListener("contextmenu", (e) => {
             rightClickPanel(e, wrapper, sound);
         });        
+
         button.className = 'sound-button-img';
         button.style.setProperty('--btn-color', sound.color);
+
         const image = document.createElement('div');
         image.className = 'sound-image';
         button.appendChild(image);
+
         button.onclick = () => {
             if (!allowOverlap) {
                 currentAudios.forEach(a => a.pause());
                 currentAudios = [];
             }
-            const audio = new Audio("https://cdn.jsdelivr.net/gh/genizy/soundboard@main/"+sound.mp3);
-            audio.play();
-            currentAudios.push(audio);
+
+            const audio = new Audio("https://cdn.jsdelivr.net/gh/genizy/soundboard@main/" + sound.mp3);
+            audio.crossOrigin = "anonymous";
+
+            // Safe audio play handling for iPad Safari
+            const playPromise = audio.play();
+            if (playPromise !== undefined) {
+                playPromise.then(() => {
+                    currentAudios.push(audio);
+                }).catch(err => {
+                    console.error("Playback failed on iOS:", err);
+                });
+            }
+
+            audio.onended = () => {
+                currentAudios = currentAudios.filter(a => a !== audio);
+            };
+
             image.classList.add('pressed');
             setTimeout(() => image.classList.remove('pressed'), 150);
         };
+
         const label = document.createElement('div');
         label.className = 'sound-label';
         label.textContent = sound.name;
+
         wrapper.appendChild(button);
         wrapper.appendChild(label);
         soundBoard.appendChild(wrapper);
     });
 }
+
 renderSounds();
+
 searchInput.addEventListener('input', () => {
-    renderSounds((showFavorites? "filter:favorite ": "")+searchInput.value);
+    renderSounds((showFavorites ? "filter:favorite " : "") + searchInput.value);
 });
 
 function rightClickPanel(event, button, sound) {
@@ -78,7 +107,7 @@ function rightClickPanel(event, button, sound) {
     panel.style.left = `${event.pageX}px`;
     panel.style.top = `${event.pageY}px`;
 
-    // favorite button
+    // Favorite button
     let favoriteJson = localStorage.getItem('favorites') ? JSON.parse(localStorage.getItem('favorites')) : [];
     const favorite = document.createElement('button');
     favorite.className = 'right-click-panel-button';
@@ -90,7 +119,7 @@ function rightClickPanel(event, button, sound) {
         if (isFavorite) {
             favoriteJson = favoriteJson.filter(item => item.name !== sound.name);
             if (showFavorites) {
-                renderSounds("filter:favorite "+searchInput.value);
+                renderSounds("filter:favorite " + searchInput.value);
             }
         } else {
             favoriteJson.push(sound);
@@ -99,14 +128,14 @@ function rightClickPanel(event, button, sound) {
         panel.remove();
     };
     
-    // download button
+    // Download button
     const download = document.createElement('button');
     download.className = 'right-click-panel-button';
     download.textContent = '💾 Download';
     
     download.onclick = () => {
         const link = document.createElement('a');
-        link.href = 'https://cdn.jsdelivr.net/gh/genizy/soundboard@main/'+sound.mp3;
+        link.href = 'https://cdn.jsdelivr.net/gh/genizy/soundboard@main/' + sound.mp3;
         link.download = sound.mp3.split("/").pop();
         document.body.appendChild(link);
         link.click();
@@ -130,7 +159,7 @@ function rightClickPanel(event, button, sound) {
     }, 0);
 }
 
-// tts
+// Text to Speech
 
 const ttsToggle     = document.getElementById('ttsToggle');
 const ttsPanel      = document.getElementById('ttsPanel');
@@ -161,6 +190,7 @@ ttsToggle.onclick = () => {
     ttsPanel.classList.toggle('hidden');
     ttsToggle.classList.toggle('tts-toggle-active');
 };
+
 ttsClose.onclick = () => {
     ttsPanel.classList.add('hidden');
     ttsToggle.classList.remove('tts-toggle-active');
@@ -312,5 +342,4 @@ function setBtns(active) {
 function setStatus(msg, state) {
     ttsStatus.textContent = msg;
     ttsStatus.className = `tts-status tts-status--${state}`;
-
 }
