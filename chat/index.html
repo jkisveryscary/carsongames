@@ -277,10 +277,32 @@
     }
     .input-row { display: flex; gap: 0.75rem; align-items: center; }
 
+    /* ── DISCORD-STYLE INSIDE INPUT FIELD & BUTTON ── */
+    .input-wrapper {
+      position: relative;
+      width: 100%;
+      display: flex;
+      align-items: center;
+    }
+
+    .btn-upload-file {
+      position: absolute;
+      left: 10px;
+      z-index: 2;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+    }
+
+    .btn-upload-file .tray-icon-img {
+      width: 18px;
+      height: 18px;
+    }
+
     .input-container .input-field {
       width: 100%;
       background: var(--surface);
-      padding: 12px 16px;
+      padding: 12px 16px 12px 50px; /* Offset text to make room for plus button */
       border-radius: var(--radius-m);
       border: 1px solid var(--border);
       color: var(--text);
@@ -399,7 +421,16 @@
         <div id="cooldown-timer-text" class="cooldown-text"></div>
 
         <div class="input-row">
-          <input id="message-input" type="text" class="input-field" placeholder="Type a message or / for a command..." autocomplete="off">
+          <input type="file" id="file-input" style="display: none;" />
+          <div class="input-wrapper">
+            <button id="upload-btn" class="action-control-btn btn-upload-file" title="Attach File" type="button">
+              <svg class="tray-icon-img" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+            </button>
+            <input id="message-input" type="text" class="input-field" placeholder="Type a message or / for a command..." autocomplete="off">
+          </div>
           <button id="send-message-btn" class="btn-primary send-btn">Send</button>
         </div>
       </div>
@@ -490,8 +521,8 @@ function parseDurationString(str) {
     case 's': return value * 1000;                        // Seconds
     case 'm': return value * 60 * 1000;                   // Minutes
     case 'h': return value * 60 * 60 * 1000;              // Hours
-    case 'd': return value * 24 * 60 * 60 * 1000;         // Days
-    case 'w': return value * 7 * 24 * 60 * 60 * 1000;     // Weeks
+    case 'd': return value * 24 * 60 * 60 * 1000;          // Days
+    case 'w': return value * 7 * 24 * 60 * 60 * 1000;      // Weeks
     case 'mo': return value * 30 * 24 * 60 * 60 * 1000;   // Months (30 Days)
     case 'y': return value * 365 * 24 * 60 * 60 * 1000;   // Years (365 Days)
     default: return null;
@@ -687,7 +718,7 @@ async function ensureNotificationPermission() {
   return await Notification.requestPermission();
 }
 
-  const messageInput = document.getElementById("message-input");
+const messageInput = document.getElementById("message-input");
 
 if (messageInput) {
   // Reset window scroll when keyboard collapses
@@ -734,7 +765,6 @@ function maybeNotifyForMention(msgData) {
   const targets = getMentionTargets(msgData.text || '');
   const senderName = msgData.username || 'Someone';
   const cleanBody = (msgData.text || '').replace(/\s+/g, ' ').trim();
-  const shortBody = cleanBody.length > 120 ? `${cleanBody.slice(0, 117)}...` : cleanBody;
 
   let notificationBody = `${senderName} mentioned you in chat`;
   if (targets.includes('mod')) {
@@ -806,6 +836,8 @@ async function startChat(user) {
   const input = document.getElementById("message-input");
   const btn = document.getElementById("send-message-btn");
   const scroller = document.getElementById("message-scroller");
+  const fileInput = document.getElementById("file-input");
+  const uploadBtn = document.getElementById("upload-btn");
 
   await ensureNotificationPermission();
   await loadAndCacheAllUsers();
@@ -813,6 +845,52 @@ async function startChat(user) {
   listenForNewMessages(user);
   scroller.addEventListener("scroll", handleScrollPagination);
   setupAutocompleteEngine(input);
+
+  if (uploadBtn && fileInput) {
+    uploadBtn.onclick = () => fileInput.click();
+
+    fileInput.onchange = async (e) => {
+      const file = e.target.files[0];
+      if (!file || !currentUser) return;
+
+      uploadBtn.disabled = true;
+
+      try {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
+        const filePath = `${currentUser.id}/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("chat-files")
+          .upload(filePath, file);
+
+        if (uploadError) throw uploadError;
+
+        const { data } = supabase.storage
+          .from("chat-files")
+          .getPublicUrl(filePath);
+
+        const publicUrl = data.publicUrl;
+
+        const { error: msgError } = await supabase.from("messages").insert([{
+          text: publicUrl,
+          username: currentUsername,
+          userId: currentUser.id,
+          avatar: currentUsername ? currentUsername[0].toUpperCase() : "U",
+          role: currentUserRole
+        }]);
+
+        if (msgError) throw msgError;
+
+      } catch (err) {
+        console.error("Upload failed:", err);
+        showLocalSystemMessage("File upload failed: " + err.message, true);
+      } finally {
+        uploadBtn.disabled = false;
+        fileInput.value = "";
+      }
+    };
+  }
 
   btn.onclick = async () => {
     let textToSend = input.value.trim();
@@ -1347,8 +1425,26 @@ function displayMessage(scroller, msgData) {
   const safeUsername = msgData.username || "User";
   const avatarLetter = safeUsername.length > 0 ? safeUsername[0].toUpperCase() : "U";
 
-  let textContent = escapeHtml(msgData.text || "");
-  textContent = textContent.replace(/@([a-zA-Z0-9_\-]+)/g, '<span style="color: #3b82f6; background: rgba(59,130,246,0.15); padding: 1px 5px; border-radius: 4px; font-weight: 600; border: 1px solid rgba(59,130,246,0.2);">@$1</span>');
+  let textContent = "";
+  const rawText = msgData.text || "";
+
+  // Media render checks
+  const isImage = /\.(jpg|jpeg|png|webp|gif|svg)(\?.*)?$/i.test(rawText);
+  const isVideo = /\.(mp4|webm|mov)(\?.*)?$/i.test(rawText);
+  const isAudio = /\.(mp3|wav|ogg)(\?.*)?$/i.test(rawText);
+
+  if (isImage) {
+    textContent = `<img src="${escapeHtml(rawText)}" alt="Uploaded file" style="max-width: 100%; max-height: 300px; border-radius: 8px; margin-top: 6px; display: block;" />`;
+  } else if (isVideo) {
+    textContent = `<video controls src="${escapeHtml(rawText)}" style="max-width: 100%; max-height: 300px; border-radius: 8px; margin-top: 6px;"></video>`;
+  } else if (isAudio) {
+    textContent = `<audio controls src="${escapeHtml(rawText)}" style="margin-top: 6px; max-width: 100%;"></audio>`;
+  } else if (rawText.startsWith("https://") && rawText.includes("/storage/v1/object/public/")) {
+    const fileName = rawText.split('/').pop().split('?')[0];
+    textContent = `<a href="${escapeHtml(rawText)}" target="_blank" download style="display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.06); padding: 8px 12px; border-radius: 6px; color: #3b82f6; text-decoration: none; font-weight: 600; margin-top: 4px;">📁 Download ${escapeHtml(fileName)}</a>`;
+  } else {
+    textContent = escapeHtml(rawText).replace(/@([a-zA-Z0-9_\-]+)/g, '<span style="color: #3b82f6; background: rgba(59,130,246,0.15); padding: 1px 5px; border-radius: 4px; font-weight: 600; border: 1px solid rgba(59,130,246,0.2);">@$1</span>');
+  }
 
   let layoutStructuralString = "";
 
@@ -1417,7 +1513,7 @@ function displayMessage(scroller, msgData) {
     }
 
     layoutStructuralString = `
-      <div class="msg-avatar" style="background: linear-gradient(135deg, ${getGradient(safeUsername)});">${avatarLetter}</div>
+      <div class="msg-avatar" style="background: linear-gradient(135deg, ${getGradient(safeUsername)} );">${avatarLetter}</div>
       <div class="msg-content">
         <div class="msg-top">
           <h5>${safeUsername} <span>${time}</span> ${statusBadgeHTML} ${whisperTag}</h5>
