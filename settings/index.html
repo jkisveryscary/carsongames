@@ -28,6 +28,23 @@
     .form-group input:focus, .form-group textarea:focus { border-color: var(--accent); box-shadow: 0 0 15px rgba(108, 99, 255, 0.15); }
     .btn-container { display: flex; justify-content: flex-end; margin-top: 0.5rem; }
 
+    /* ── AVATAR UPLOADER STYLES ── */
+    .avatar-preview-box {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      margin-top: 0.5rem;
+    }
+    .avatar-circle-display {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      border: 2px solid var(--accent);
+      object-fit: cover;
+      background: #000;
+      flex-shrink: 0;
+    }
+
     /* ── BACKGROUND GALLERY GRID (6 PER ROW) ── */
     .background-grid-wrapper {
       display: grid;
@@ -56,7 +73,6 @@
       transform: translateZ(0);
     }
     
-    /* PREVENT LAYOUT SHIFT ON HOVER/ACTIVE */
     .background-thumb-card:hover .thumb-canvas, 
     .background-thumb-card.active .thumb-canvas {
       border-color: var(--accent);
@@ -73,7 +89,7 @@
     }
     .background-thumb-card.active .thumb-label { color: #fff; }
 
-    /* ── HEADER ROW WITH TOP-RIGHT PLUS / MINUS CONTROLS ── */
+    /* ── HEADER ROW WITH TOP-RIGHT CONTROLS ── */
     .section-header-controls {
       display: flex;
       justify-content: space-between;
@@ -114,7 +130,6 @@
       border-color: #ef4444;
     }
 
-    /* ── STACKED EDITABLE ANNOUNCEMENT BOXES ── */
     .announcements-box-stack {
       display: flex;
       flex-direction: column;
@@ -196,7 +211,6 @@
       document.body.className = 'theme-' + localThemeCached;
     }
 
-    /* UPDATED IMAGE PATHS FROM /assets/ TO ../assets/ */
     const THEME_DATA_MAP = [
       { id: 'default', type: 'color', val: '#06060c', label: 'default' },
       { id: 'red', type: 'color', val: '#1c0505', label: 'red' },
@@ -220,10 +234,32 @@
       const { data: profile } = await supabase.from("users").select("*").eq("id", user.id).single();
       const currentBgSetting = (profile && profile.background) ? profile.background : 'default';
       const currentUserRole = (profile && profile.role) ? profile.role : 'user';
+      const currentAvatarUrl = (profile && profile.avatar_url) ? profile.avatar_url : '';
 
       window.CarsonGamesTheme.apply(currentBgSetting);
 
       settingsWrapper.innerHTML = `
+        <form id="avatar-form" class="settings-section">
+          <h3>Profile Picture</h3>
+          <div class="form-group">
+            <label for="avatar-input">Select New Profile Picture</label>
+            <input type="file" id="avatar-input" accept="image/*">
+          </div>
+
+          <div class="avatar-preview-box">
+            <canvas id="avatar-canvas" width="64" height="64" class="avatar-circle-display" style="${currentAvatarUrl ? 'display:none;' : ''}"></canvas>
+            <img id="avatar-preview-img" class="avatar-circle-display" src="${currentAvatarUrl || ''}" style="${currentAvatarUrl ? '' : 'display:none;'}" alt="Profile Picture" />
+            <div style="font-size:0.85rem; color:var(--text-muted);">
+              Images are automatically scaled down to 64x64 to save storage space.
+            </div>
+          </div>
+
+          <div class="btn-container">
+            <button type="submit" id="save-avatar-btn" class="btn-primary" disabled>Update Profile Picture</button>
+          </div>
+          <div id="avatar-msg" class="status-msg"></div>
+        </form>
+
         <form id="username-form" class="settings-section">
           <h3>Change Username</h3>
           <div class="form-group">
@@ -256,6 +292,88 @@
 
         <div id="owner-panel-injection-point"></div>
       `;
+
+      /* AVATAR CROP & RESIZE TO 64x64 */
+      const avatarInput = document.getElementById('avatar-input');
+      const avatarCanvas = document.getElementById('avatar-canvas');
+      const avatarPreviewImg = document.getElementById('avatar-preview-img');
+      const ctx = avatarCanvas.getContext('2d');
+      const saveAvatarBtn = document.getElementById('save-avatar-btn');
+      const avatarMsg = document.getElementById('avatar-msg');
+      let avatarBlob = null;
+
+      avatarInput.onchange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const img = new Image();
+          img.onload = () => {
+            avatarPreviewImg.style.display = 'none';
+            avatarCanvas.style.display = 'block';
+
+            ctx.clearRect(0, 0, 64, 64);
+            const minDim = Math.min(img.width, img.height);
+            const sx = (img.width - minDim) / 2;
+            const sy = (img.height - minDim) / 2;
+
+            ctx.drawImage(img, sx, sy, minDim, minDim, 0, 0, 64, 64);
+
+            avatarCanvas.toBlob((blob) => {
+              avatarBlob = blob;
+              saveAvatarBtn.disabled = false;
+            }, 'image/jpeg', 0.85);
+          };
+          img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+      };
+
+      document.getElementById('avatar-form').onsubmit = async (e) => {
+        e.preventDefault();
+        if (!avatarBlob) return;
+
+        try {
+          avatarMsg.textContent = 'Uploading profile picture...';
+          avatarMsg.className = 'status-msg';
+
+          const filePath = `avatars/${user.id}.jpg`;
+
+          // Upload to chat-files bucket with explicit image/jpeg header
+          const { error: uploadError } = await supabase.storage
+            .from('chat-files')
+            .upload(filePath, avatarBlob, {
+              contentType: 'image/jpeg',
+              upsert: true
+            });
+
+          if (uploadError) throw uploadError;
+
+          const { data } = supabase.storage
+            .from('chat-files')
+            .getPublicUrl(filePath);
+
+          // Add timestamp query parameter to bust browser cache
+          const avatarUrl = `${data.publicUrl}?t=${Date.now()}`;
+
+          // Save URL in users database row
+          const { error: updateError } = await supabase
+            .from('users')
+            .update({ avatar_url: avatarUrl })
+            .eq('id', user.id);
+
+          if (updateError) throw updateError;
+
+          avatarMsg.textContent = 'Profile picture updated successfully!';
+          avatarMsg.className = 'status-msg status-success';
+          saveAvatarBtn.disabled = true;
+        } catch (err) {
+          console.error(err);
+          avatarMsg.textContent = 'Failed to update picture: ' + err.message;
+          avatarMsg.className = 'status-msg status-error';
+        }
+      };
 
       // Render Background Theme Selector
       const thumbContainer = document.getElementById("thumb-matrix-target");
