@@ -74,6 +74,16 @@
       flex-direction: column;
       align-items: stretch;
       overflow: hidden;
+      will-change: transform, opacity;
+      opacity: 0;
+      transform: translateY(18px) scale(0.98);
+      animation: billboardIn 0.75s var(--ease) both;
+    }
+    .billboard-rect:first-child {
+      animation-delay: 0.15s;
+    }
+    .billboard-rect:last-child {
+      animation-delay: 0.3s;
     }
     .billboard-rect h3 {
       font-family: var(--font-display);
@@ -103,6 +113,11 @@
     .billboard-scroll-area ul { list-style: none; }
     .billboard-scroll-area li { color: #cbd5e1; font-size: 0.95rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem; }
     .billboard-scroll-area li::before { content: ">"; color: var(--text-muted); font-weight: bold; }
+
+    @keyframes billboardIn {
+      from { opacity: 0; transform: translateY(18px) scale(0.98); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
 
     .grid {
       display: grid;
@@ -147,6 +162,20 @@
 
     @media (max-width: 768px) {
       .hero-billboards { flex-direction: column; gap: 2rem; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .hero h1,
+      .hero h1 span,
+      .hero p,
+      .billboard-rect {
+        animation: none !important;
+      }
+
+      .billboard-rect {
+        opacity: 1;
+        transform: none;
+      }
     }
   </style>
 </head>

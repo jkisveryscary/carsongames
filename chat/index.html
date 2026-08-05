@@ -242,7 +242,8 @@
     .msg-block { display: flex; gap: 1rem; align-items: flex-start; transition: opacity 0.2s ease; position: relative; }
     .msg-block.pending { opacity: 0.4; filter: brightness(0.8); }
 
-    .msg-avatar { width: 44px; height: 44px; border-radius: 50%; background: var(--card); flex-shrink: 0; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; color: var(--accent); font-family: var(--font-display); font-weight: 800; }
+    .msg-avatar { width: 44px; height: 44px; border-radius: 50%; background: var(--card); flex-shrink: 0; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; color: var(--accent); font-family: var(--font-display); font-weight: 800; overflow: hidden; }
+    .msg-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
     .msg-content { width: 100%; padding-right: 80px; }
     .msg-top { display: flex; align-items: center; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 0.35rem; }
     .msg-content h5 { font-family: var(--font-display); font-size: 0.95rem; font-weight: 700; margin: 0; color: var(--text); }
@@ -390,7 +391,8 @@
       color: #fff;
     }
     .suggestion-item .item-icon { font-weight: bold; color: #a855f7; }
-    .suggestion-item .item-avatar { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: bold; color: #fff; }
+    .suggestion-item .item-avatar { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: bold; color: #fff; overflow: hidden; }
+    .suggestion-item .item-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
     @keyframes fadeIn { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } }
     @keyframes slideInLeft { from { opacity: 0; transform: translateX(-12px); } to { opacity: 1; transform: none; } }
@@ -525,6 +527,7 @@ let processedOmoggleRedirects = new Set();
 let publicChannel = null;
 let privateChannel = null;
 let userProfileChannel = null;
+let avatarIndexByUserId = new Map();
 
 /* HELPER TIMEOUT FOR ALL DURATION STRINGS */
 function parseDurationString(str) {
@@ -604,6 +607,11 @@ supabase.auth.onAuthStateChange(async (event, session) => {
       currentUserRole = data.role || "user";
       currentUserMutedUntil = data.mutedUntil || 0;
       currentUserBannedUntil = data.bannedUntil || 0;
+
+      const cachedUser = allRegisteredUsers.find(item => item.id === user.id) || localUsersCache.find(item => item.id === user.id);
+      if (cachedUser) {
+        cachedUser.username = data.username || cachedUser.username;
+      }
 
       if (currentUserBannedUntil && Date.now() < currentUserBannedUntil) {
         handleBannedUserDisplay();
@@ -685,6 +693,43 @@ async function loadAndCacheAllUsers() {
     }
   } catch (err) {
     console.error("Failed to compile master user profile storage parameters:", err);
+  }
+}
+
+async function loadAvatarIndex() {
+  avatarIndexByUserId = new Map();
+
+  try {
+    const { data, error } = await supabase.storage.from("chat-files").list("avatars", {
+      limit: 1000,
+      sortBy: { column: "name", order: "desc" }
+    });
+
+    if (error || !data) return;
+
+    const latestByUser = new Map();
+
+    data.forEach(item => {
+      if (!item.name) return;
+      const match = item.name.match(/^(.+?)__(\d+)\.(jpg|jpeg|png|webp)$/i);
+      if (!match) return;
+
+      const userId = match[1];
+      const timestamp = parseInt(match[2], 10) || 0;
+      const existing = latestByUser.get(userId);
+
+      if (!existing || timestamp > existing.timestamp) {
+        latestByUser.set(userId, {
+          fileName: item.name,
+          timestamp
+        });
+      }
+    });
+
+    avatarIndexByUserId = latestByUser;
+  } catch (err) {
+    console.error("Failed to load avatar storage index:", err);
+    avatarIndexByUserId = new Map();
   }
 }
 
@@ -858,6 +903,7 @@ async function startChat(user) {
 
   await ensureNotificationPermission();
   await loadAndCacheAllUsers();
+  await loadAvatarIndex();
 
   listenForNewMessages(user);
   scroller.addEventListener("scroll", handleScrollPagination);
@@ -1535,7 +1581,7 @@ function displayMessage(scroller, msgData) {
     }
 
     layoutStructuralString = `
-      <div class="msg-avatar" style="background: linear-gradient(135deg, ${getGradient(safeUsername)});">${avatarLetter}</div>
+      <div class="msg-avatar"></div>
       <div class="msg-content">
         <div class="msg-top">
           <h5>${safeUsername} <span>${time}</span> ${statusBadgeHTML} ${whisperTag}</h5>
@@ -1548,6 +1594,10 @@ function displayMessage(scroller, msgData) {
 
   div.innerHTML = layoutStructuralString;
 
+
+  if (!msgData.isSystemMessage && !msgData.isOmoggleInvite) {
+    decorateAvatarElement(div.querySelector('.msg-avatar'), msgData.userId || msgData.senderId, safeUsername, avatarLetter);
+  }
   if (msgData.isOmoggleInvite && msgData.inviteStatus === "pending" && currentUser && currentUser.id !== msgData.senderId) {
     const accBtn = div.querySelector(".btn-duel-accept");
     const decBtn = div.querySelector(".btn-duel-decline");
@@ -1776,9 +1826,20 @@ function showMentions(users, type) {
     div.className = "suggestion-item" + (idx === 0 ? " selected" : "");
     const displayName = u.isSpecial ? `@${u.username}` : `@${u.username}`;
     div.innerHTML = `
-      <div class="item-avatar" style="background: linear-gradient(135deg, ${getGradient(u.username)});">${u.avatar || u.username[0].toUpperCase()}</div>
+      <div class="item-avatar"></div>
       <strong>${displayName}</strong>
     `;
+
+    if (!u.isSpecial) {
+      decorateAvatarElement(div.querySelector('.item-avatar'), u.id, u.username, u.avatar || u.username[0].toUpperCase());
+    } else {
+      const fallbackGradient = getGradient(u.username);
+      const itemAvatar = div.querySelector('.item-avatar');
+      if (itemAvatar) {
+        itemAvatar.style.background = `linear-gradient(135deg, ${fallbackGradient})`;
+        itemAvatar.textContent = u.avatar || '@';
+      }
+    }
 
     div.onclick = (e) => {
       e.stopPropagation();
@@ -1876,6 +1937,47 @@ function getGradient(username) {
     hash = username.charCodeAt(i) + ((hash << 5) - hash);
   }
   return colors[Math.abs(hash) % colors.length];
+}
+
+async function loadAvatarImageForUser(userId) {
+  if (!userId) return null;
+
+  const publicUrl = supabase.storage.from("chat-files").getPublicUrl(`avatars/${userId}.jpg`).data.publicUrl;
+  const response = await fetch(publicUrl, { cache: "no-store" });
+  if (!response.ok) return null;
+
+  const blob = await response.blob();
+  return await new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(blob);
+    const img = document.createElement("img");
+    img.alt = "Profile picture";
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(img);
+    };
+    img.onerror = (error) => {
+      URL.revokeObjectURL(objectUrl);
+      reject(error);
+    };
+    img.src = objectUrl;
+  });
+}
+
+async function decorateAvatarElement(element, userId, username, fallbackText) {
+  if (!element) return;
+
+  const gradient = getGradient(username || "User");
+  element.style.background = "var(--card)";
+  element.innerHTML = "";
+
+  const image = await loadAvatarImageForUser(userId).catch(() => null);
+  if (!image) {
+    element.style.background = `linear-gradient(135deg, ${gradient})`;
+    element.textContent = fallbackText;
+    return;
+  }
+
+  element.appendChild(image);
 }
 
 function escapeHtml(text) {
