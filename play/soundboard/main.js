@@ -60,8 +60,9 @@ function renderSounds(filter = '') {
                 currentAudios = [];
             }
 
-            const audio = new Audio("https://cdn.jsdelivr.net/gh/genizy/soundboard@main/" + sound.mp3);
-            audio.crossOrigin = "anonymous";
+            // Strips leading slash to create relative URL for GitHub Pages
+            const soundUrl = sound.mp3.startsWith('/') ? sound.mp3.slice(1) : sound.mp3;
+            const audio = new Audio(soundUrl);
 
             // Safe audio play handling for iPad Safari
             const playPromise = audio.play();
@@ -134,8 +135,9 @@ function rightClickPanel(event, button, sound) {
     download.textContent = '💾 Download';
     
     download.onclick = () => {
+        const soundUrl = sound.mp3.startsWith('/') ? sound.mp3.slice(1) : sound.mp3;
         const link = document.createElement('a');
-        link.href = 'https://cdn.jsdelivr.net/gh/genizy/soundboard@main/' + sound.mp3;
+        link.href = soundUrl;
         link.download = sound.mp3.split("/").pop();
         document.body.appendChild(link);
         link.click();
