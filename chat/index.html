@@ -800,13 +800,10 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 const EX_COMMANDS = [
   { name: "/admin", desc: "Promote a user to Admin" },
-  { name: "/announce", desc: "Post a highlighted global announcement" },
   { name: "/ban", desc: "Ban a user for a chosen duration (e.g., /ban @user 15d spamming)" },
-  { name: "/clear", desc: "Clear your local chat display rows" },
   { name: "/deleteall", desc: "Wipe all chat messages and whispers completely" },
   { name: "/deleteuser", desc: "Purge a user profile row from the database framework" },
   { name: "/headadmin", desc: "Promote an Admin to Owner/Head Admin status" },
-  { name: "/help", desc: "Display a clean breakdown of available system utilities" },
   { name: "/kick", desc: "Kick a user from the active session for 2 minutes" },
   { name: "/mute", desc: "Mute a user for a chosen duration (e.g., /mute @user 30m spamming)" },
   { name: "/omoggle", desc: "Send an instant live Omoggle video match challenge" },
