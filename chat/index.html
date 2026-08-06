@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
-  <title>Dashboard | RapidIdentity</title>
+  <title>Carson Games - Chat</title>
   <script src="../assets/theme-loader.js"></script>
   <link rel="stylesheet" href="../style.css">
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@700&family=Plus+Jakarta+Sans:wght=500;600;700&display=swap" rel="stylesheet">
@@ -194,6 +194,281 @@
       left: 100%;
     }
 
+    /* ── VOICE/VIDEO CHAT DOCK ────────────────────────────── */
+    #vc-dock-container {
+      display: none;
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      height: 320px;
+      min-height: 240px;
+      max-height: 340px;
+      overflow: hidden;
+      flex-shrink: 0;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      animation: slideDown 0.3s var(--ease);
+    }
+
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .vc-dock-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.75rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      flex-shrink: 0;
+    }
+
+    .vc-room-info {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .vc-room-title {
+      font-family: var(--font-display);
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .vc-participant-count {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      background: rgba(108, 99, 255, 0.1);
+      padding: 3px 10px;
+      border-radius: 99px;
+      border: 1px solid rgba(108, 99, 255, 0.2);
+    }
+
+    .vc-controls {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    .vc-control-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius-m);
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s var(--ease);
+      padding: 0;
+    }
+
+    .vc-control-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: var(--accent);
+    }
+
+    .vc-control-btn img {
+      width: 20px;
+      height: 20px;
+      object-fit: contain;
+      filter: brightness(0.9);
+      transition: filter 0.2s var(--ease);
+    }
+
+    .vc-control-btn:hover img {
+      filter: brightness(1.2);
+    }
+
+    .vc-leave-btn {
+      background: #ef4444 !important;
+      border-color: rgba(239, 68, 68, 0.3) !important;
+    }
+
+    .vc-leave-btn:hover {
+      background: #dc2626 !important;
+      border-color: rgba(220, 38, 38, 0.5) !important;
+      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+    }
+
+    .vc-leave-btn img {
+      filter: brightness(1) !important;
+    }
+
+    #vc-participant-grid {
+      display: grid;
+      gap: 0.75rem;
+      padding: 1rem 1.5rem;
+      height: calc(100% - 64px);
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* Layout: 1 Person */
+    #vc-participant-grid.count-1 {
+      grid-template-columns: 1fr;
+      grid-template-rows: 1fr;
+    }
+
+    /* Layout: 2 People */
+    #vc-participant-grid.count-2 {
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr;
+    }
+
+    /* Layout: 3 People (Focus Mode) */
+    #vc-participant-grid.count-3 {
+      grid-template-columns: 7fr 3fr;
+      grid-template-rows: 1fr;
+    }
+
+    #vc-participant-grid.count-3 .vc-tile.focus-tile {
+      grid-column: 1;
+      grid-row: 1;
+    }
+
+    #vc-participant-grid.count-3 .vc-tile:not(.focus-tile) {
+      grid-column: 2;
+      grid-row: 1;
+      height: 50%;
+    }
+
+    #vc-participant-grid.count-3 .vc-tile:not(.focus-tile):first-of-type {
+      margin-bottom: 0.375rem;
+    }
+
+    #vc-participant-grid.count-3 .vc-tile:not(.focus-tile):last-of-type {
+      margin-top: 0.375rem;
+    }
+
+    /* Layout: 4 People */
+    #vc-participant-grid.count-4 {
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+    }
+
+    /* Layout: 5+ People */
+    #vc-participant-grid.count-5plus {
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      grid-auto-rows: 180px;
+    }
+
+    .vc-tile {
+      position: relative;
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: var(--radius-l);
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: border-color 0.3s var(--ease), box-shadow 0.3s var(--ease);
+      min-height: 0;
+    }
+
+    .vc-tile.is-speaking {
+      border: 2px solid var(--accent) !important;
+      box-shadow: 0 0 12px var(--accent-glow), 0 0 24px rgba(108, 99, 255, 0.15);
+    }
+
+    .vc-tile video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      background: var(--card);
+      display: block;
+    }
+
+    .vc-tile video.is-hidden {
+      display: none;
+    }
+
+    .vc-avatar-img {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: var(--card);
+      border: 2px solid var(--border);
+      object-fit: cover;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 1.5rem;
+      color: var(--accent);
+      text-transform: uppercase;
+    }
+
+    .vc-avatar-img.is-hidden {
+      display: none;
+    }
+
+    .vc-tile-overlay {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      padding: 0.75rem;
+      pointer-events: none;
+      background: linear-gradient(to top, rgba(0, 0, 0, 0.6), transparent);
+    }
+
+    .vc-tile-info {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .vc-username {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #fff;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+    }
+
+    .vc-status-badge {
+      width: 18px;
+      height: 18px;
+      border-radius: 4px;
+      background: rgba(0, 0, 0, 0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2px;
+    }
+
+    .vc-status-badge img {
+      width: 12px;
+      height: 12px;
+      object-fit: contain;
+      filter: brightness(1.1);
+    }
+
+    .vc-local-badge {
+      font-size: 0.7rem;
+      font-weight: 700;
+      background: var(--accent);
+      color: #fff;
+      padding: 2px 8px;
+      border-radius: 99px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      box-shadow: 0 2px 6px rgba(108, 99, 255, 0.4);
+    }
+
     /* ── LAYOUT MECHANICS ─────────────────────────────────── */
     .chat-layout {
       display: flex;
@@ -292,7 +567,7 @@
       z-index: 2;
       width: 32px;
       height: 32px;
-      border-radius: 8px; /* Square with rounded corners like Discord */
+      border-radius: 8px;
       background: #2b2d31;
       border: 1px solid rgba(255, 255, 255, 0.1);
       display: flex;
@@ -321,7 +596,7 @@
     .input-container .input-field {
       width: 100%;
       background: var(--surface);
-      padding: 12px 16px 12px 52px; /* Offset text to clear square plus button */
+      padding: 12px 16px 12px 52px;
       border-radius: var(--radius-m);
       border: 1px solid var(--border);
       color: var(--text);
@@ -406,6 +681,40 @@
     @media (prefers-reduced-motion: reduce) {
       header, .chat-layout, .chat-main, .cooldown-text { animation: none !important; }
     }
+
+    @media (max-width: 768px) {
+      #vc-participant-grid.count-2 {
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr 1fr;
+      }
+
+      #vc-participant-grid.count-3 {
+        grid-template-columns: 1fr;
+        grid-template-rows: 2fr 1fr 1fr;
+      }
+
+      #vc-participant-grid.count-3 .vc-tile.focus-tile {
+        grid-column: 1;
+        grid-row: 1;
+      }
+
+      #vc-participant-grid.count-3 .vc-tile:not(.focus-tile) {
+        grid-column: 1;
+      }
+
+      #vc-participant-grid.count-3 .vc-tile:not(.focus-tile):first-of-type {
+        grid-row: 2;
+      }
+
+      #vc-participant-grid.count-3 .vc-tile:not(.focus-tile):last-of-type {
+        grid-row: 3;
+      }
+
+      #vc-participant-grid.count-4 {
+        grid-template-columns: 1fr;
+        grid-template-rows: repeat(4, 1fr);
+      }
+    }
   </style>
 </head>
 <body>
@@ -425,6 +734,30 @@
       </nav>
     </div>
   </header>
+
+  <div id="vc-dock-container">
+    <div class="vc-dock-header">
+      <div class="vc-room-info">
+        <div class="vc-room-title">🔊 General VC</div>
+        <div class="vc-participant-count" id="vc-participant-count">0 participants</div>
+      </div>
+      <div class="vc-controls">
+        <button class="vc-control-btn" id="vc-mic-btn" title="Toggle Microphone">
+          <img src="../assets/chat-vc-mic-unmuted.svg" alt="Mic">
+        </button>
+        <button class="vc-control-btn" id="vc-camera-btn" title="Toggle Camera">
+          <img src="../assets/chat-vc-camera-disabled.svg" alt="Camera">
+        </button>
+        <button class="vc-control-btn" id="vc-screenshare-btn" title="Share Screen">
+          <img src="../assets/chat-vc-screenshare.svg" alt="Screen Share">
+        </button>
+        <button class="vc-control-btn vc-leave-btn" id="vc-leave-btn" title="Leave Voice Room">
+          <img src="../assets/chat-vc-leave.svg" alt="Leave">
+        </button>
+      </div>
+    </div>
+    <div id="vc-participant-grid"></div>
+  </div>
 
   <main class="chat-layout">
     <section class="chat-main">
@@ -478,6 +811,7 @@ const EX_COMMANDS = [
   { name: "/mute", desc: "Mute a user for a chosen duration (e.g., /mute @user 30m spamming)" },
   { name: "/omoggle", desc: "Send an instant live Omoggle video match challenge" },
   { name: "/permaban", desc: "Permanently ban a user from entering chat loops" },
+  { name: "/publicvc", desc: "Start a public voice chat call for all users" }, // <-- ADDED HERE
   { name: "/subscription", desc: "Modify user status parameter to basic or premium" },
   { name: "/unadmin", desc: "Strip admin access parameters from a target user" },
   { name: "/unban", desc: "Remove entry bans from a specific user profile" },
@@ -485,6 +819,7 @@ const EX_COMMANDS = [
   { name: "/unmute", desc: "Lift chat silence mutes from a specific user profile" },
   { name: "/undo", desc: "Undo your last local modification or text deletion step" },
   { name: "/users", desc: "Display system data structures of all profiles" },
+  { name: "/privatevc", desc: "Start a private voice chat call (e.g. /vc @user1 @user2)" }, // <-- ADDED HERE
   { name: "/warn", desc: "Log an official emphasized public warning to a user" },
   { name: "/w", desc: "Whisper privately to other users" }
 ].sort((a, b) => a.name.localeCompare(b.name));
@@ -529,6 +864,16 @@ let privateChannel = null;
 let userProfileChannel = null;
 let avatarIndexByUserId = new Map();
 
+/* ── VOICE/VIDEO CHAT STATE ───────────────────────────────── */
+let vcParticipants = new Map();
+let vcLocalState = {
+  isMuted: false,
+  isCameraOn: false,
+  isScreenSharing: false,
+  isSpeaking: false
+};
+let vcActiveRoomId = null;
+
 /* HELPER TIMEOUT FOR ALL DURATION STRINGS */
 function parseDurationString(str) {
   if (!str) return null;
@@ -539,13 +884,13 @@ function parseDurationString(str) {
   const unit = match[2].toLowerCase();
 
   switch (unit) {
-    case 's': return value * 1000;                        // Seconds
-    case 'm': return value * 60 * 1000;                   // Minutes
-    case 'h': return value * 60 * 60 * 1000;              // Hours
-    case 'd': return value * 24 * 60 * 60 * 1000;          // Days
-    case 'w': return value * 7 * 24 * 60 * 60 * 1000;      // Weeks
-    case 'mo': return value * 30 * 24 * 60 * 60 * 1000;   // Months (30 Days)
-    case 'y': return value * 365 * 24 * 60 * 60 * 1000;   // Years (365 Days)
+    case 's': return value * 1000;
+    case 'm': return value * 60 * 1000;
+    case 'h': return value * 60 * 60 * 1000;
+    case 'd': return value * 24 * 60 * 60 * 1000;
+    case 'w': return value * 7 * 24 * 60 * 60 * 1000;
+    case 'mo': return value * 30 * 24 * 60 * 60 * 1000;
+    case 'y': return value * 365 * 24 * 60 * 60 * 1000;
     default: return null;
   }
 }
@@ -784,7 +1129,6 @@ async function ensureNotificationPermission() {
 const messageInput = document.getElementById("message-input");
 
 if (messageInput) {
-  // Reset window scroll when keyboard collapses
   messageInput.addEventListener("blur", () => {
     window.scrollTo(0, 0);
     document.body.scrollTop = 0;
@@ -894,6 +1238,221 @@ function startCooldownTimer(forcedMuteTime = null) {
   activeMuteInterval = setInterval(updateDisplay, 100);
 }
 
+/* ── VOICE/VIDEO CHAT FUNCTIONS ────────────────────────────── */
+function updateGridParticipantLayout(participantsArray) {
+  const grid = document.getElementById('vc-participant-grid');
+  const countDisplay = document.getElementById('vc-participant-count');
+  
+  if (!grid || !countDisplay) return;
+
+  const count = participantsArray.length;
+  countDisplay.textContent = `${count} participant${count !== 1 ? 's' : ''}`;
+
+  grid.className = '';
+  
+  if (count === 1) grid.classList.add('count-1');
+  else if (count === 2) grid.classList.add('count-2');
+  else if (count === 3) grid.classList.add('count-3');
+  else if (count === 4) grid.classList.add('count-4');
+  else if (count >= 5) grid.classList.add('count-5plus');
+
+  grid.innerHTML = '';
+
+  const sortedParticipants = [...participantsArray].sort((a, b) => {
+    if (a.isScreenSharing && !b.isScreenSharing) return -1;
+    if (!a.isScreenSharing && b.isScreenSharing) return 1;
+    if (a.isSpeaking && !b.isSpeaking) return -1;
+    if (!a.isSpeaking && b.isSpeaking) return 1;
+    return 0;
+  });
+
+  sortedParticipants.forEach((participant, index) => {
+    const tile = document.createElement('div');
+    tile.className = 'vc-tile';
+    tile.dataset.peerId = participant.peerId;
+
+    if (participant.isScreenSharing || participant.isSpeaking) {
+      tile.classList.add('focus-tile');
+    }
+
+    if (participant.isSpeaking) {
+      tile.classList.add('is-speaking');
+    }
+
+    const videoEl = document.createElement('video');
+    videoEl.autoplay = true;
+    videoEl.playsInline = true;
+    videoEl.muted = participant.peerId === currentUser?.id;
+    if (!participant.isCameraOn && !participant.isScreenSharing) {
+      videoEl.classList.add('is-hidden');
+    }
+
+    const avatarEl = document.createElement('div');
+    avatarEl.className = 'vc-avatar-img';
+    if (participant.isCameraOn || participant.isScreenSharing) {
+      avatarEl.classList.add('is-hidden');
+    }
+    avatarEl.textContent = (participant.username || 'U').charAt(0).toUpperCase();
+
+    const overlayEl = document.createElement('div');
+    overlayEl.className = 'vc-tile-overlay';
+
+    const infoEl = document.createElement('div');
+    infoEl.className = 'vc-tile-info';
+
+    const usernameEl = document.createElement('div');
+    usernameEl.className = 'vc-username';
+    usernameEl.textContent = participant.username || 'User';
+    infoEl.appendChild(usernameEl);
+
+    if (participant.isMuted) {
+      const micBadge = document.createElement('div');
+      micBadge.className = 'vc-status-badge';
+      const micImg = document.createElement('img');
+      micImg.src = '../assets/chat-vc-mic-muted.svg';
+      micImg.alt = 'Muted';
+      micBadge.appendChild(micImg);
+      infoEl.appendChild(micBadge);
+    }
+
+    if (!participant.isCameraOn && !participant.isScreenSharing) {
+      const camBadge = document.createElement('div');
+      camBadge.className = 'vc-status-badge';
+      const camImg = document.createElement('img');
+      camImg.src = '../assets/chat-vc-camera-disabled.svg';
+      camImg.alt = 'Camera off';
+      camBadge.appendChild(camImg);
+      infoEl.appendChild(camBadge);
+    }
+
+    if (participant.isScreenSharing) {
+      const screenBadge = document.createElement('div');
+      screenBadge.className = 'vc-status-badge';
+      const screenImg = document.createElement('img');
+      screenImg.src = '../assets/chat-vc-screenshare.svg';
+      screenImg.alt = 'Screen sharing';
+      screenBadge.appendChild(screenImg);
+      infoEl.appendChild(screenBadge);
+    }
+
+    overlayEl.appendChild(infoEl);
+
+    if (participant.peerId === currentUser?.id) {
+      const localBadge = document.createElement('div');
+      localBadge.className = 'vc-local-badge';
+      localBadge.textContent = 'You';
+      overlayEl.appendChild(localBadge);
+    }
+
+    tile.appendChild(videoEl);
+    tile.appendChild(avatarEl);
+    tile.appendChild(overlayEl);
+
+    grid.appendChild(tile);
+  });
+}
+
+function setParticipantMediaState(peerId, state) {
+  const participant = vcParticipants.get(peerId);
+  if (!participant) return;
+
+  Object.assign(participant, state);
+  vcParticipants.set(peerId, participant);
+
+  updateGridParticipantLayout(Array.from(vcParticipants.values()));
+
+  if (peerId === currentUser?.id) {
+    Object.assign(vcLocalState, state);
+
+    const micBtn = document.getElementById('vc-mic-btn');
+    const camBtn = document.getElementById('vc-camera-btn');
+
+    if (micBtn) {
+      const micImg = micBtn.querySelector('img');
+      if (micImg) {
+        micImg.src = vcLocalState.isMuted 
+          ? '../assets/chat-vc-mic-muted.svg' 
+          : '../assets/chat-vc-mic-unmuted.svg';
+      }
+    }
+
+    if (camBtn) {
+      const camImg = camBtn.querySelector('img');
+      if (camImg) {
+        camImg.src = vcLocalState.isCameraOn 
+          ? '../assets/chat-vc-camera-enabled.svg' 
+          : '../assets/chat-vc-camera-disabled.svg';
+      }
+    }
+  }
+}
+
+function joinVoiceRoom(roomId) {
+  vcActiveRoomId = roomId;
+  const dock = document.getElementById('vc-dock-container');
+  if (dock) {
+    dock.style.display = 'flex';
+    dock.style.flexDirection = 'column';
+  }
+
+  if (currentUser) {
+    const localParticipant = {
+      peerId: currentUser.id,
+      username: currentUsername,
+      isMuted: vcLocalState.isMuted,
+      isCameraOn: vcLocalState.isCameraOn,
+      isScreenSharing: vcLocalState.isScreenSharing,
+      isSpeaking: vcLocalState.isSpeaking
+    };
+    vcParticipants.set(currentUser.id, localParticipant);
+    updateGridParticipantLayout(Array.from(vcParticipants.values()));
+  }
+}
+
+function leaveVoiceRoom() {
+  vcActiveRoomId = null;
+  const dock = document.getElementById('vc-dock-container');
+  if (dock) {
+    dock.style.display = 'none';
+  }
+  vcParticipants.clear();
+}
+
+/* ── VC CONTROL BUTTON HANDLERS ───────────────────────────── */
+document.addEventListener('DOMContentLoaded', () => {
+  const micBtn = document.getElementById('vc-mic-btn');
+  const camBtn = document.getElementById('vc-camera-btn');
+  const screenshareBtn = document.getElementById('vc-screenshare-btn');
+  const leaveBtn = document.getElementById('vc-leave-btn');
+
+  if (micBtn) {
+    micBtn.onclick = () => {
+      if (!currentUser) return;
+      setParticipantMediaState(currentUser.id, { isMuted: !vcLocalState.isMuted });
+    };
+  }
+
+  if (camBtn) {
+    camBtn.onclick = () => {
+      if (!currentUser) return;
+      setParticipantMediaState(currentUser.id, { isCameraOn: !vcLocalState.isCameraOn });
+    };
+  }
+
+  if (screenshareBtn) {
+    screenshareBtn.onclick = () => {
+      if (!currentUser) return;
+      setParticipantMediaState(currentUser.id, { isScreenSharing: !vcLocalState.isScreenSharing });
+    };
+  }
+
+  if (leaveBtn) {
+    leaveBtn.onclick = () => {
+      leaveVoiceRoom();
+    };
+  }
+});
+
 async function startChat(user) {
   const input = document.getElementById("message-input");
   const btn = document.getElementById("send-message-btn");
@@ -1002,7 +1561,62 @@ async function startChat(user) {
       const isAdminPlus = currentUserRole === "admin" || currentUserRole === "owner";
       const isOwnerOnly = currentUserRole === "owner";
 
-      /* ── /MUTE LOCAL-ONLY CONTROL ───────────────────────── */
+      // ── PUBLIC VOICE CHAT COMMAND ──
+      if (commandKey === "/publicvc") {
+        const roomId = "vc-pub-" + Math.random().toString(36).substring(2, 9);
+        
+        await supabase.from("vc_rooms").insert([{
+          room_id: roomId,
+          created_by: currentUsername,
+          is_public: true
+        }]);
+
+        await supabase.from("messages").insert([{
+          text: `🔊 @${currentUsername} started a public voice chat!`,
+          username: "Server",
+          userId: null,
+          role: "system",
+          type: "vc_invite",
+          room_id: roomId
+        }]);
+
+        joinVoiceRoom(roomId);
+        return;
+      }
+
+      // ── PRIVATE VOICE CHAT COMMAND (/privatevc @user1 @user2) ──
+      if (commandKey === "/privatevc") {
+        const mentions = textToSend.match(/@\w+/g) || [];
+        const targetUsernames = mentions.map(m => m.replace("@", "").toLowerCase());
+
+        if (targetUsernames.length === 0) {
+          showLocalSystemMessage("Syntax: /privatevc @username1 @username2", true);
+          return;
+        }
+
+        const roomId = "vc-priv-" + Math.random().toString(36).substring(2, 9);
+        const invitedList = [currentUsername, ...targetUsernames].join(", ");
+
+        await supabase.from("vc_rooms").insert([{
+          room_id: roomId,
+          created_by: currentUsername,
+          is_public: false,
+          allowed_users: [currentUsername.toLowerCase(), ...targetUsernames]
+        }]);
+
+        await supabase.from("messages").insert([{
+          text: `🔒 @${currentUsername} started a private voice chat including: ${invitedList}`,
+          username: "Server",
+          userId: null,
+          role: "system",
+          type: "vc_invite",
+          room_id: roomId
+        }]);
+
+        joinVoiceRoom(roomId);
+        return;
+      }
+
       if (commandKey === "/mute" && isAdminPlus) {
         const durationStr = segments[2];
         const durationMs = parseDurationString(durationStr);
@@ -1069,7 +1683,6 @@ async function startChat(user) {
         return;
       }
 
-      /* ── /BAN LOCAL-ONLY CONTROL ────────────────────────── */
       if (commandKey === "/ban" && isAdminPlus) {
         const durationStr = segments[2];
         const durationMs = parseDurationString(durationStr);
@@ -1091,7 +1704,6 @@ async function startChat(user) {
         return;
       }
 
-      /* ── /PERMABAN LOCAL-ONLY CONTROL ───────────────────── */
       if (commandKey === "/permaban" && isAdminPlus) {
         if (!targetUser) { showLocalSystemMessage("Syntax: /permaban @username", true); return; }
         await supabase.from("users").update({ bannedUntil: Date.now() + (100 * 365 * 24 * 60 * 60 * 1000) }).eq("id", targetUser.id);
@@ -1192,7 +1804,7 @@ async function startChat(user) {
         return;
       }
 
-      if (!["/w", "/whisper", "/omoggle"].includes(commandKey)) {
+      if (!["/w", "/whisper", "/omoggle", "/publicvc", "/privatevc"].includes(commandKey)) {
         showLocalSystemMessage(`System Warning: Command '${commandKey}' is unrecognized or unauthorized.`, true);
         return;
       }
@@ -1491,7 +2103,6 @@ function displayMessage(scroller, msgData) {
   let textContent = "";
   const rawText = msgData.text || "";
 
-  // Improved Media Render Checks (Supports query params, case-insensitive, Supabase public URLs)
   const isImage = (/\.(jpg|jpeg|png|webp|gif|svg)($|\?)/i.test(rawText)) || (rawText.includes('/storage/v1/object/public/') && /\.(jpg|jpeg|png|webp|gif|svg)/i.test(rawText));
   const isVideo = (/\.(mp4|webm|mov)($|\?)/i.test(rawText));
   const isAudio = (/\.(mp3|wav|ogg)($|\?)/i.test(rawText));
@@ -1555,14 +2166,32 @@ function displayMessage(scroller, msgData) {
         ${internalDuelPanelHTML}
       </div>
     `;
-  } else if (msgData.isSystemMessage) {
+  } else if (msgData.type === "vc_invite" || msgData.isSystemMessage) {
+    let vcButtonsHTML = "";
+    
+    // Check if message is a Voice Chat invitation and create Join/Dismiss buttons
+    if (msgData.type === "vc_invite" && msgData.room_id) {
+      vcButtonsHTML = `
+        <div style="display: flex; gap: 8px; margin-top: 8px;">
+          <button class="btn-duel-accept" onclick="window.joinVoiceRoom('${msgData.room_id}')">Join Voice</button>
+          <button class="btn-duel-decline" onclick="this.closest('.msg-block').remove()">Dismiss</button>
+        </div>
+      `;
+    }
+
+    const isVC = msgData.type === "vc_invite";
+    const avatarIcon = isVC ? "🔊" : "S";
+    const headerTitle = isVC ? "Voice Chat" : "Server";
+    const textColor = isVC ? "var(--accent)" : (msgData.isError ? "#ef4444" : "#6c63ff");
+
     layoutStructuralString = `
-      <div class="msg-avatar" style="background: #242549; color: #fff;">S</div>
+      <div class="msg-avatar" style="background: #242549; color: #fff;">${avatarIcon}</div>
       <div class="msg-content">
         <div class="msg-top">
-          <h5>Server <span>${time}</span></h5>
+          <h5>${headerTitle} <span>${time}</span></h5>
         </div>
-        <p style="color: ${msgData.isError ? '#ef4444' : '#6c63ff'}; font-weight: 600;">${escapeHtml(msgData.text || "")}</p>
+        <p style="color: ${textColor}; font-weight: 600;">${escapeHtml(msgData.text || "")}</p>
+        ${vcButtonsHTML}
       </div>
     `;
   } else {
@@ -1593,7 +2222,6 @@ function displayMessage(scroller, msgData) {
   }
 
   div.innerHTML = layoutStructuralString;
-
 
   if (!msgData.isSystemMessage && !msgData.isOmoggleInvite) {
     decorateAvatarElement(div.querySelector('.msg-avatar'), msgData.userId || msgData.senderId, safeUsername, avatarLetter);
@@ -1702,7 +2330,7 @@ function setupAutocompleteEngine(input) {
     }
 
     const baseCommandContext = words[0].toLowerCase();
-    const targetAutocompleteCommands = ["/w", "/omoggle", "/mute", "/unmute", "/admin", "/unadmin", "/headadmin", "/unheadadmin", "/subscription", "/deleteuser", "/ban", "/unban", "/permaban", "/kick", "/warn"];
+    const targetAutocompleteCommands = ["/w", "/omoggle", "/privatevc", "/mute", "/unmute", "/admin", "/unadmin", "/headadmin", "/unheadadmin", "/subscription", "/deleteuser", "/ban", "/unban", "/permaban", "/kick", "/warn"];
 
     if (targetAutocompleteCommands.includes(baseCommandContext)) {
       let isTargetingPhase = true;
@@ -1984,6 +2612,12 @@ function escapeHtml(text) {
   const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
   return text.replace(/[&<>"']/g, m => map[m]);
 }
+
+// Expose VC functions globally for external access
+window.joinVoiceRoom = joinVoiceRoom;
+window.leaveVoiceRoom = leaveVoiceRoom;
+window.setParticipantMediaState = setParticipantMediaState;
+window.updateGridParticipantLayout = updateGridParticipantLayout;
 </script>
 </body>
 </html>
