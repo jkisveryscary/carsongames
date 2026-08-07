@@ -547,3 +547,111 @@ html[subframe] body {
   transition: transform 250ms cubic-bezier(0.4, 0.0, 1, 1) .4s;
   z-index: 2;
 }
+
+/* Layout Wrapper to align Game and Highscore Box side-by-side */
+.game-page-container {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 24px;
+  max-width: 1000px;
+  margin: 30px auto 0;
+  padding: 0 16px;
+  box-sizing: border-box;
+}
+
+.interstitial-wrapper {
+  margin: 0 !important;
+  flex: 1;
+}
+
+/* Retro Dino-Themed Leaderboard Box (2:1 vertical aspect ratio) */
+.leaderboard-card {
+  width: 180px;
+  height: 360px; /* 2:1 height-to-width ratio */
+  background-color: #f7f7f7;
+  border: 2px solid #535353;
+  border-radius: 6px;
+  box-sizing: border-box;
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+  font-family: 'Press Start 2P', monospace, sans-serif;
+  color: #535353;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+}
+
+.leaderboard-header {
+  font-size: 11px;
+  font-weight: bold;
+  text-align: center;
+  border-bottom: 2px dashed #535353;
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+  letter-spacing: 1px;
+}
+
+.leaderboard-slots {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-right: 4px;
+}
+
+/* Custom Scrollbar for Retro Feel */
+.leaderboard-slots::-webkit-scrollbar {
+  width: 4px;
+}
+.leaderboard-slots::-webkit-scrollbar-thumb {
+  background: #535353;
+  border-radius: 2px;
+}
+
+/* Slot Rows (Fits 6-8 slots at once) */
+.leaderboard-slot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 36px;
+  padding: 0 6px;
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  font-size: 10px;
+}
+
+.slot-username {
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 90px;
+  color: #535353;
+}
+
+.slot-score {
+  text-align: right;
+  font-weight: bold;
+  color: #202020;
+}
+
+.leaderboard-loading {
+  font-size: 9px;
+  text-align: center;
+  margin-top: 20px;
+  color: #777;
+}
+
+/* iPad & Mobile Adjustments */
+@media (max-width: 820px) {
+  .game-page-container {
+    flex-direction: column;
+    align-items: center;
+  }
+  .leaderboard-card {
+    width: 280px;
+    height: 240px;
+  }
+}
