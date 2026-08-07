@@ -802,7 +802,7 @@ Runner.prototype = {
       this.gameOverPanel.draw();
     }
 
-    // Update the high score.
+    // Update the local high score.
     if (this.distanceRan > this.highestScore) {
       this.highestScore = Math.ceil(this.distanceRan);
       this.distanceMeter.setHighScore(this.highestScore);
@@ -810,6 +810,12 @@ Runner.prototype = {
 
     // Reset the time clock.
     this.time = getTimeStamp();
+
+    // Trigger Supabase high score check & save
+    const finalScore = Math.ceil(this.distanceRan);
+    if (typeof saveHighScore === 'function') {
+      saveHighScore(finalScore);
+    }
   },
 
   stop: function() {
