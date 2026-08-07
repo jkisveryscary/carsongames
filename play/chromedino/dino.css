@@ -565,104 +565,36 @@ html[subframe] body {
   flex: 1;
 }
 
-/* Retro Dino-Themed Leaderboard Box (2:1 vertical aspect ratio) */
-.leaderboard-card {
-  width: 180px;
-  height: 360px; /* 2:1 height-to-width ratio */
-  background-color: #f7f7f7;
-  border: 2px solid #535353;
-  border-radius: 6px;
+/* Layout Wrapper to position Dino Game in center and Leaderboard on the right */
+.game-layout-wrapper {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: flex-start;
+  width: 100%;
+  max-width: 1200px;
+  margin: 40px auto 0;
+  padding: 0 20px;
   box-sizing: border-box;
-  padding: 12px 10px;
-  display: flex;
-  flex-direction: column;
-  font-family: 'Press Start 2P', monospace, sans-serif;
-  color: #535353;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
 }
 
-.leaderboard-header {
-  font-size: 11px;
-  font-weight: bold;
-  text-align: center;
-  border-bottom: 2px dashed #535353;
-  padding-bottom: 8px;
-  margin-bottom: 8px;
-  letter-spacing: 1px;
+/* Spacer on the left to keep game centered */
+.layout-spacer {
+  visibility: hidden;
 }
 
-.leaderboard-slots {
-  flex: 1;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding-right: 4px;
+/* Center game container */
+#main-frame-error {
+  grid-column: 2;
+  margin: 0 auto !important;
+  max-width: 600px;
 }
 
-/* Custom Scrollbar for Retro Feel */
-.leaderboard-slots::-webkit-scrollbar {
-  width: 4px;
-}
-.leaderboard-slots::-webkit-scrollbar-thumb {
-  background: #535353;
-  border-radius: 2px;
-}
-
-/* Slot Rows (Fits 6-8 slots at once) */
-.leaderboard-slot {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  height: 36px;
-  padding: 0 6px;
-  background: #ffffff;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
-  font-size: 10px;
-}
-
-.slot-username {
-  text-align: left;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 90px;
-  color: #535353;
-}
-
-.slot-score {
-  text-align: right;
-  font-weight: bold;
-  color: #202020;
-}
-
-.leaderboard-loading {
-  font-size: 9px;
-  text-align: center;
-  margin-top: 20px;
-  color: #777;
-}
-
-/* iPad & Mobile Adjustments */
-@media (max-width: 820px) {
-  .game-page-container {
-    flex-direction: column;
-    align-items: center;
-  }
-  .leaderboard-card {
-    width: 280px;
-    height: 240px;
-  }
-}
-
-/* Retro High Score Board anchored to top right */
+/* Right-side High Score Leaderboard Box */
 .leaderboard-card {
-  position: absolute;
-  top: 20px;
-  right: 20px;
+  grid-column: 3;
+  justify-self: end;
   width: 170px;
-  height: 340px; /* 2:1 height-to-width aspect ratio */
+  height: 340px; /* 2:1 height-to-width ratio */
   background-color: #f7f7f7;
   border: 2px solid #535353;
   border-radius: 6px;
@@ -672,7 +604,6 @@ html[subframe] body {
   flex-direction: column;
   font-family: 'Press Start 2P', monospace, sans-serif;
   color: #535353;
-  z-index: 100;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
 }
 
@@ -695,7 +626,6 @@ html[subframe] body {
   padding-right: 2px;
 }
 
-/* Retro scrollbar */
 .leaderboard-slots::-webkit-scrollbar {
   width: 4px;
 }
@@ -704,7 +634,6 @@ html[subframe] body {
   border-radius: 2px;
 }
 
-/* Individual Slot (Fits 6-8 entries visible at once) */
 .leaderboard-slot {
   display: flex;
   justify-content: space-between;
@@ -740,12 +669,17 @@ html[subframe] body {
   color: #777;
 }
 
-/* Adjustments if screen width is too small for side overlay */
-@media (max-width: 900px) {
+/* Mobile & Small Screen Fallback */
+@media (max-width: 850px) {
+  .game-layout-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .layout-spacer {
+    display: none;
+  }
   .leaderboard-card {
-    position: relative;
-    top: 0;
-    right: 0;
-    margin: 20px auto 0 auto;
+    margin-top: 20px;
   }
 }
