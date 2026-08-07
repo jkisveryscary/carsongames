@@ -5,22 +5,29 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>T-Rex Runner</title>
   <link rel="stylesheet" href="dino.css">
+  
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="dino.js"></script>
 </head>
 <body id="t" class="offline">
 
-  <div id="main-frame-error" class="interstitial-wrapper">
-    <div id="main-content">
-      <div class="icon icon-offline" alt=""></div>
-    </div>
-  </div>
+  <div class="game-layout-wrapper">
+    
+    <div class="layout-spacer"></div>
 
-  <div class="leaderboard-card" id="leaderboard-card">
-    <div class="leaderboard-header">HIGH SCORES</div>
-    <div class="leaderboard-slots" id="leaderboard-slots">
-      <div class="leaderboard-loading">LOADING...</div>
+    <div id="main-frame-error" class="interstitial-wrapper">
+      <div id="main-content">
+        <div class="icon icon-offline" alt=""></div>
+      </div>
     </div>
+
+    <div class="leaderboard-card">
+      <div class="leaderboard-header">HIGH SCORES</div>
+      <div class="leaderboard-slots" id="leaderboard-slots">
+        <div class="leaderboard-loading">LOADING...</div>
+      </div>
+    </div>
+
   </div>
 
   <div id="offline-resources">
