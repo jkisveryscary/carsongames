@@ -2,32 +2,27 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>T-Rex Runner</title>
   <link rel="stylesheet" href="dino.css">
   
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="dino.js"></script>
+  <script src="/assets/theme-loader.js"></script>
 </head>
 <body id="t" class="offline">
 
-  <div class="game-layout-wrapper">
-    
-    <div class="layout-spacer"></div>
-
-    <div id="main-frame-error" class="interstitial-wrapper">
-      <div id="main-content">
-        <div class="icon icon-offline" alt=""></div>
-      </div>
+  <div id="main-frame-error" class="interstitial-wrapper">
+    <div id="main-content">
+      <div class="icon icon-offline" alt=""></div>
     </div>
+  </div>
 
-    <div class="leaderboard-card">
-      <div class="leaderboard-header">HIGH SCORES</div>
-      <div class="leaderboard-slots" id="leaderboard-slots">
-        <div class="leaderboard-loading">LOADING...</div>
-      </div>
+  <div class="leaderboard-card" id="leaderboard-card">
+    <div class="leaderboard-header">HIGH SCORES</div>
+    <div class="leaderboard-slots" id="leaderboard-slots">
+      <div class="leaderboard-loading">LOADING...</div>
     </div>
-
   </div>
 
   <div id="offline-resources">
@@ -35,6 +30,9 @@
   </div>
 
   <script>
+    // -------------------------------------------------------------
+    // 1. SUPABASE INTEGRATION
+    // -------------------------------------------------------------
     const SUPABASE_URL = 'YOUR_SUPABASE_URL';
     const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
     const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -43,7 +41,8 @@
 
     async function loadLeaderboard() {
       const container = document.getElementById('leaderboard-slots');
-      
+      if (!container) return;
+
       const { data, error } = await supabase
         .from('dino_scores')
         .select('username, score')
@@ -106,7 +105,26 @@
       }
     }
 
+    // -------------------------------------------------------------
+    // 2. MONKEY-PATCH GAME ENGINE BEFORE LAUNCH
+    // -------------------------------------------------------------
+    if (typeof Runner !== 'undefined') {
+      const originalGameOver = Runner.prototype.gameOver;
+      Runner.prototype.gameOver = function() {
+        originalGameOver.apply(this, arguments);
+        const finalScore = Math.ceil(this.distanceRan);
+        saveHighScore(finalScore);
+      };
+    }
+
+    // -------------------------------------------------------------
+    // 3. LAUNCH ENGINE ON LOAD
+    // -------------------------------------------------------------
     document.addEventListener('DOMContentLoaded', async () => {
+      // Launch Engine Instance
+      new Runner('.interstitial-wrapper');
+
+      // Fetch Session & Scores
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         currentUser = session.user;
