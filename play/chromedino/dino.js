@@ -622,7 +622,7 @@ Runner.prototype = {
    * @param {Event} e
    */
   handleEvent: function(e) {
-    // Ignore clicks/touches on or inside the leaderboard container
+    // Ignore clicks or touches originating inside the leaderboard box
     if (e.target && e.target.closest('#leaderboard-card')) {
       return;
     }
