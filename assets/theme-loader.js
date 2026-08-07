@@ -3,7 +3,7 @@
   const SITE_META_URL = '/site-meta.json';
   const DEFAULT_SITE_META = {
     title: 'Dashboard | RapidIdentity',
-    favicon: 'https://rizzingwithteachers.github.io/games/assets/favicon.ico',
+    favicon: 'https://northallegheny.us004-rapididentity.com:443/files/NAlogo_gold_flat.png',
   };
 
   const clearThemeClasses = (element) => {
