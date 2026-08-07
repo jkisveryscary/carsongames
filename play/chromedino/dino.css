@@ -589,13 +589,36 @@ html[subframe] body {
   max-width: 600px;
 }
 
-/* High Score Card pinned in top-right corner */
+/* Layout Wrapper to position Dino Game in center and Leaderboard on the right */
+.game-layout-wrapper {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: flex-start;
+  width: 100%;
+  max-width: 1200px;
+  margin: 40px auto 0;
+  padding: 0 20px;
+  box-sizing: border-box;
+}
+
+/* Spacer on the left to keep game centered */
+.layout-spacer {
+  visibility: hidden;
+}
+
+/* Center game container */
+#main-frame-error {
+  grid-column: 2;
+  margin: 0 auto !important;
+  max-width: 600px;
+}
+
+/* Right-side High Score Leaderboard Box */
 .leaderboard-card {
-  position: fixed;
-  top: 30px;
-  right: 30px;
+  grid-column: 3;
+  justify-self: end;
   width: 170px;
-  height: 340px; /* 2:1 ratio */
+  height: 340px; /* 2:1 height-to-width ratio */
   background-color: #f7f7f7;
   border: 2px solid #535353;
   border-radius: 6px;
@@ -605,7 +628,6 @@ html[subframe] body {
   flex-direction: column;
   font-family: 'Press Start 2P', monospace, sans-serif;
   color: #535353;
-  z-index: 1000; /* Keeps box above the full-screen touch listener */
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
 }
 
@@ -671,84 +693,17 @@ html[subframe] body {
   color: #777;
 }
 
-/* Position leaderboard floating in top right without displacing game canvas */
-.leaderboard-card {
-  position: fixed;
-  top: 25px;
-  right: 25px;
-  width: 170px;
-  height: 340px; /* 2:1 ratio */
-  background-color: #f7f7f7;
-  border: 2px solid #535353;
-  border-radius: 6px;
-  box-sizing: border-box;
-  padding: 10px 8px;
-  display: flex;
-  flex-direction: column;
-  font-family: 'Press Start 2P', monospace, sans-serif;
-  color: #535353;
-  z-index: 1000;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
-}
-
-.leaderboard-header {
-  font-size: 10px;
-  font-weight: bold;
-  text-align: center;
-  border-bottom: 2px dashed #535353;
-  padding-bottom: 6px;
-  margin-bottom: 8px;
-  letter-spacing: 0.5px;
-}
-
-.leaderboard-slots {
-  flex: 1;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  padding-right: 2px;
-}
-
-.leaderboard-slots::-webkit-scrollbar {
-  width: 4px;
-}
-.leaderboard-slots::-webkit-scrollbar-thumb {
-  background: #535353;
-  border-radius: 2px;
-}
-
-.leaderboard-slot {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  height: 32px;
-  padding: 0 6px;
-  background: #ffffff;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
-  font-size: 9px;
-  box-sizing: border-box;
-}
-
-.slot-username {
-  text-align: left;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 80px;
-  color: #535353;
-}
-
-.slot-score {
-  text-align: right;
-  font-weight: bold;
-  color: #202020;
-}
-
-.leaderboard-loading {
-  font-size: 8px;
-  text-align: center;
-  margin-top: 20px;
-  color: #777;
+/* Mobile & Small Screen Fallback */
+@media (max-width: 850px) {
+  .game-layout-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .layout-spacer {
+    display: none;
+  }
+  .leaderboard-card {
+    margin-top: 20px;
+  }
 }
