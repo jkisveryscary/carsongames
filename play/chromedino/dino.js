@@ -618,19 +618,25 @@ Runner.prototype = {
   },
 
   /**
-   * Event handler.
+   * Bind dynamic events.
+   * @param {Event} e
    */
   handleEvent: function(e) {
+    // Ignore clicks/touches on or inside the leaderboard container
+    if (e.target && e.target.closest('#leaderboard-card')) {
+      return;
+    }
+
     return (function(evtType, events) {
       switch (evtType) {
         case events.KEYDOWN:
         case events.TOUCHSTART:
-        case events.POINTERDOWN:
+        case events.MOUSEDOWN:
           this.onKeyDown(e);
           break;
         case events.KEYUP:
         case events.TOUCHEND:
-        case events.POINTERUP:
+        case events.MOUSEUP:
           this.onKeyUp(e);
           break;
       }
