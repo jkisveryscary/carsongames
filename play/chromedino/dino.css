@@ -655,3 +655,97 @@ html[subframe] body {
     height: 240px;
   }
 }
+
+/* Retro High Score Board anchored to top right */
+.leaderboard-card {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 170px;
+  height: 340px; /* 2:1 height-to-width aspect ratio */
+  background-color: #f7f7f7;
+  border: 2px solid #535353;
+  border-radius: 6px;
+  box-sizing: border-box;
+  padding: 10px 8px;
+  display: flex;
+  flex-direction: column;
+  font-family: 'Press Start 2P', monospace, sans-serif;
+  color: #535353;
+  z-index: 100;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+}
+
+.leaderboard-header {
+  font-size: 10px;
+  font-weight: bold;
+  text-align: center;
+  border-bottom: 2px dashed #535353;
+  padding-bottom: 6px;
+  margin-bottom: 8px;
+  letter-spacing: 0.5px;
+}
+
+.leaderboard-slots {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding-right: 2px;
+}
+
+/* Retro scrollbar */
+.leaderboard-slots::-webkit-scrollbar {
+  width: 4px;
+}
+.leaderboard-slots::-webkit-scrollbar-thumb {
+  background: #535353;
+  border-radius: 2px;
+}
+
+/* Individual Slot (Fits 6-8 entries visible at once) */
+.leaderboard-slot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 32px;
+  padding: 0 6px;
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  font-size: 9px;
+  box-sizing: border-box;
+}
+
+.slot-username {
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 80px;
+  color: #535353;
+}
+
+.slot-score {
+  text-align: right;
+  font-weight: bold;
+  color: #202020;
+}
+
+.leaderboard-loading {
+  font-size: 8px;
+  text-align: center;
+  margin-top: 20px;
+  color: #777;
+}
+
+/* Adjustments if screen width is too small for side overlay */
+@media (max-width: 900px) {
+  .leaderboard-card {
+    position: relative;
+    top: 0;
+    right: 0;
+    margin: 20px auto 0 auto;
+  }
+}
