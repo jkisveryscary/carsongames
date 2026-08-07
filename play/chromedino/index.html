@@ -11,21 +11,17 @@
 </head>
 <body id="t" class="offline">
 
-  <div class="game-page-container">
-    
-    <div id="main-frame-error" class="interstitial-wrapper">
-      <div id="main-content">
-        <div class="icon icon-offline" alt=""></div>
-      </div>
+  <div id="main-frame-error" class="interstitial-wrapper">
+    <div id="main-content">
+      <div class="icon icon-offline" alt=""></div>
     </div>
+  </div>
 
-    <div class="leaderboard-card">
-      <div class="leaderboard-header">HIGH SCORES</div>
-      <div class="leaderboard-slots" id="leaderboard-slots">
-        <div class="leaderboard-loading">LOADING...</div>
-      </div>
+  <div class="leaderboard-card">
+    <div class="leaderboard-header">HIGH SCORES</div>
+    <div class="leaderboard-slots" id="leaderboard-slots">
+      <div class="leaderboard-loading">LOADING...</div>
     </div>
-
   </div>
 
   <div id="offline-resources">
@@ -33,14 +29,12 @@
   </div>
 
   <script>
-    // 1. Initialize Supabase Client
     const SUPABASE_URL = 'YOUR_SUPABASE_URL';
     const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
     const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     let currentUser = null;
 
-    // 2. Load Top Scores from Supabase
     async function loadLeaderboard() {
       const container = document.getElementById('leaderboard-slots');
       
@@ -78,14 +72,12 @@
       });
     }
 
-    // 3. Save / Update User High Score on Death
     async function saveHighScore(newScore) {
       if (!currentUser) return;
 
       const userId = currentUser.id;
       const username = currentUser.user_metadata?.username || currentUser.email?.split('@')[0] || 'PLAYER';
 
-      // Check existing score in database
       const { data, error } = await supabase
         .from('dino_scores')
         .select('score')
@@ -93,7 +85,6 @@
         .maybeSingle();
 
       if (!error) {
-        // Only update if no previous score exists OR new score is higher
         if (!data || newScore > data.score) {
           await supabase
             .from('dino_scores')
@@ -104,13 +95,11 @@
               updated_at: new Date().toISOString()
             });
 
-          // Reload leaderboard list
           loadLeaderboard();
         }
       }
     }
 
-    // 4. On Page Load & Auth Check
     document.addEventListener('DOMContentLoaded', async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
