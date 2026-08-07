@@ -23,6 +23,9 @@
     <div class="leaderboard-slots" id="leaderboard-slots">
       <div class="leaderboard-loading">LOADING...</div>
     </div>
+    <div class="leaderboard-footer" id="leaderboard-footer">
+      Sign in to save your high scores!
+    </div>
   </div>
 
   <div id="offline-resources">
@@ -31,29 +34,38 @@
 
   <script>
     // -------------------------------------------------------------
-    // 1. SUPABASE INTEGRATION
+    // 1. SUPABASE CONFIGURATION
     // -------------------------------------------------------------
-    const SUPABASE_URL = 'YOUR_SUPABASE_URL';
-    const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
+    const SUPABASE_URL = 'https://hbynnertatvxpvtqctyg.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhieW5uZXJ0YXR2eHB2dHFjdHlnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ0OTA1NDYsImV4cCI6MjEwMDA2NjU0Nn0.xFX8E9H_WxZArOi-Vesan9T4p9bZEk23sqUTwicpHvs';
+    
+    let supabase = null;
     let currentUser = null;
 
+    try {
+      if (SUPABASE_URL && !SUPABASE_URL.includes('YOUR_SUPABASE_URL')) {
+        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      }
+    } catch (err) {
+      console.warn('Supabase initialization failed or keys are not set yet.');
+    }
+
+    // Fetch and display high scores publicly for everyone
     async function loadLeaderboard() {
       const container = document.getElementById('leaderboard-slots');
       if (!container) return;
+
+      if (!supabase) {
+        container.innerHTML = '<div class="leaderboard-loading">NO SCORES YET</div>';
+        return;
+      }
 
       const { data, error } = await supabase
         .from('dino_scores')
         .select('username, score')
         .order('score', { ascending: false });
 
-      if (error || !data) {
-        container.innerHTML = '<div class="leaderboard-loading">ERROR LOADING</div>';
-        return;
-      }
-
-      if (data.length === 0) {
+      if (error || !data || data.length === 0) {
         container.innerHTML = '<div class="leaderboard-loading">NO SCORES YET</div>';
         return;
       }
@@ -77,8 +89,9 @@
       });
     }
 
+    // Save score upon crashing ONLY if signed in
     async function saveHighScore(newScore) {
-      if (!currentUser) return;
+      if (!supabase || !currentUser) return;
 
       const userId = currentUser.id;
       const username = currentUser.user_metadata?.username || currentUser.email?.split('@')[0] || 'PLAYER';
@@ -106,7 +119,7 @@
     }
 
     // -------------------------------------------------------------
-    // 2. MONKEY-PATCH GAME ENGINE BEFORE LAUNCH
+    // 2. ENGINE HOOKS (BEFORE GAME LOAD)
     // -------------------------------------------------------------
     if (typeof Runner !== 'undefined') {
       const originalGameOver = Runner.prototype.gameOver;
@@ -118,17 +131,26 @@
     }
 
     // -------------------------------------------------------------
-    // 3. LAUNCH ENGINE ON LOAD
+    // 3. LAUNCH GAME & FETCH SESSION
     // -------------------------------------------------------------
     document.addEventListener('DOMContentLoaded', async () => {
-      // Launch Engine Instance
-      new Runner('.interstitial-wrapper');
+      // Initialize Chrome Dino runner
+      window.runnerInstance = new Runner('.interstitial-wrapper');
 
-      // Fetch Session & Scores
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        currentUser = session.user;
+      // Check session state and update footer note
+      if (supabase) {
+        const { data: { session } } = await supabase.auth.getSession();
+        const footer = document.getElementById('leaderboard-footer');
+        
+        if (session) {
+          currentUser = session.user;
+          if (footer) footer.style.display = 'none'; // Hide notice when signed in
+        } else if (footer) {
+          footer.style.display = 'block'; // Show notice when not signed in
+        }
       }
+      
+      // Load public leaderboard for all users regardless of login state
       loadLeaderboard();
     });
   </script>
