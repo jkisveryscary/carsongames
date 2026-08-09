@@ -804,9 +804,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 const EX_COMMANDS = [
   { name: "/admin", desc: "Promote a user to Admin {/admin @user}" },
-  { name: "/announce", desc: "Send a global announcement {/announce message}" },
   { name: "/ban", desc: "Ban a user for a duration {/ban @user time reason}" },
-  { name: "/clear", desc: "Clear local chat history {/clear}" },
   { name: "/deleteall", desc: "Wipe all chat messages and whispers {/deleteall}" },
   { name: "/deleteuser", desc: "Delete a user from the database {/deleteuser @user}" },
   { name: "/help", desc: "Show available commands {/help}" },
@@ -823,10 +821,9 @@ const EX_COMMANDS = [
   { name: "/undo", desc: "Undo your last message deletion/edit {/undo}" },
   { name: "/unmute", desc: "Unmute a user {/unmute @user}" },
   { name: "/unowner", desc: "Demote an Owner to Admin {/unowner @user}" },
-  { name: "/users", desc: "Display all registered users {/users}" },
   { name: "/w", desc: "Whisper privately to a user {/w @user message}" },
-  { name: "/warn", desc: "Issue a formal warning to a user {/warn @user reason}" },
-  { name: "/whisper", desc: "Whisper privately to a user {/whisper @user message}" }
+  { name: "/whisper", desc: "Whisper privately to a user {/whisper @user message}" },
+  { name: "/warn", desc: "Issue a formal warning to a user {/warn @user reason}" }
 ].sort((a, b) => a.name.localeCompare(b.name));
 
 let currentUser = null;
