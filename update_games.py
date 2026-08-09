@@ -4,8 +4,8 @@ from pathlib import Path
 
 # Target settings
 NEW_TITLE = "Dashboard | RapidIdentity"
-FAVICON_PATH = "/assets/favicon.ico"
-FAVICON_TAG = f'<link rel="icon" href="{FAVICON_PATH}" type="image/x-icon">'
+FAVICON_PATH = "https://northallegheny.us004-rapididentity.com:443/files/NAlogo_gold_flat.png"
+FAVICON_TAG = f'<link rel="icon" href="{FAVICON_PATH}" type="image/png">'
 
 # Get current directory
 project_dir = Path(__file__).parent
