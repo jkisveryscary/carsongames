@@ -103,6 +103,24 @@ async function signUp(username, emailVal, passwordVal) {
     return false;
   }
 
+  // Check if the username already exists in the database
+  const { data: existingUsers, error: checkError } = await supabase
+    .from("users")
+    .select("id")
+    .eq("username", username.trim())
+    .limit(1);
+
+  if (checkError) {
+    console.error("Error checking username:", checkError);
+    alert("An error occurred while checking username availability. Please try again.");
+    return false;
+  }
+
+  if (existingUsers && existingUsers.length > 0) {
+    alert("This username is already taken! Please choose a different one.");
+    return false;
+  }
+
   const { data, error } = await supabase.auth.signUp({
     email: emailVal,
     password: passwordVal
