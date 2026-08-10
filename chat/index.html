@@ -832,6 +832,7 @@ let currentUsername = "User";
 let currentUserRole = "user";
 let currentUserMutedUntil = 0;
 let currentUserBannedUntil = 0;
+let currentUserBanReason = "";
 
 let lastMessageTime = 0;
 const MESSAGE_COOLDOWN = 2000;
@@ -916,6 +917,7 @@ supabase.auth.onAuthStateChange(async (event, session) => {
     currentUserRole = "user";
     currentUserMutedUntil = 0;
     currentUserBannedUntil = 0;
+    currentUserBanReason = "";
     updateAuthButtonState(false);
     window.location.replace("../login/");
     return;
@@ -944,6 +946,7 @@ supabase.auth.onAuthStateChange(async (event, session) => {
     currentUserRole = profile.role || "user";
     currentUserMutedUntil = profile.mutedUntil || 0;
     currentUserBannedUntil = profile.bannedUntil || 0;
+    currentUserBanReason = profile.banReason || "";
   }
 
   if (userProfileChannel) userProfileChannel.unsubscribe();
@@ -957,6 +960,7 @@ supabase.auth.onAuthStateChange(async (event, session) => {
       currentUserRole = data.role || "user";
       currentUserMutedUntil = data.mutedUntil || 0;
       currentUserBannedUntil = data.bannedUntil || 0;
+      currentUserBanReason = data.banReason || "";
 
       const cachedUser = allRegisteredUsers.find(item => item.id === user.id) || localUsersCache.find(item => item.id === user.id);
       if (cachedUser) {
@@ -1031,9 +1035,12 @@ function handleBannedUserDisplay() {
       textSummaryString = `You are banned for ${segments.length > 0 ? segments.join(", ") : "a few seconds"}.`;
     }
 
+    const reasonString = currentUserBanReason || "No explicit reason logged.";
+
     scroller.innerHTML = `
       <div style="text-align: center; font-family: var(--font-display); padding: 4rem 1rem; width: 100%;">
         <div style="color: #ef4444; font-size: 1.35rem; font-weight: 800; margin-bottom: 0.6rem; letter-spacing: -0.5px;">${textSummaryString}</div>
+        <div style="color: var(--text-muted); font-size: 0.95rem; font-weight: 600; margin-bottom: 0.8rem;">Reason: ${escapeHtml(reasonString)}</div>
         <div style="color: var(--text-muted); font-size: 0.95rem; font-weight: 600;">Ask an admin if you think this is a mistake.</div>
       </div>
     `;
@@ -1156,8 +1163,8 @@ if (messageInput) {
 
 function getMentionTargets(text) {
   if (!text) return [];
-  const matches = text.match(/@([a-zA-Z0-9_\-]+)/g) || [];
-  return [...new Set(matches.map(match => match.slice(1).toLowerCase()))];
+  const matches = text.match(/@[^\s]+/g) || [];
+  return [...new Set(matches.map(match => match.slice(1).replace(/[.,!?;:]+$/, '').toLowerCase()).filter(Boolean))];
 }
 
 function shouldNotifyForMention(msgData) {
@@ -1615,41 +1622,54 @@ async function startChat(user) {
       const segments = textToSend.split(/\s+/);
       const commandKey = segments[0].toLowerCase();
       
-      const mentions = textToSend.match(/@([a-zA-Z0-9_\-]+)/g) || [];
-      const targetUsernames = mentions.map(m => m.substring(1).toLowerCase());
-      let targetUser = null;
-      if (targetUsernames.length > 0) {
-        targetUser = localUsersCache.find(u => u.username.toLowerCase() === targetUsernames[0]);
-      }
+      // Extract target mentions or usernames
+      const mentions = textToSend.match(/@[^\s]+/g) || [];
+      const targetUsernames = mentions.map(m => m.substring(1).replace(/[.,!?;:]+$/, '').toLowerCase()).filter(Boolean);
 
       const isAdminPlus = currentUserRole === "admin" || currentUserRole === "owner";
       const isOwnerOnly = currentUserRole === "owner";
 
-      if (targetUser && ["/mute", "/ban", "/kick", "/permaban", "/admin", "/unadmin", "/owner", "/unowner", "/subscription", "/deleteuser"].includes(commandKey)) {
-        if (targetUser.id === currentUser.id) {
+      // ── HELPER: Resolve target user from Cache OR Supabase Direct Query ──
+      async function resolveTargetUser() {
+        if (targetUsernames.length === 0) return null;
+        const searchName = targetUsernames[0];
+
+        // 1. Try local cache
+        let found = localUsersCache.find(u => u.username && u.username.toLowerCase() === searchName);
+        if (found) return found;
+
+        // 2. Fallback to Supabase
+        const { data } = await supabase
+          .from("users")
+          .select("id, username, role")
+          .ilike("username", searchName)
+          .maybeSingle();
+
+        return data || null;
+      }
+
+      // Helper function to check role hierarchy
+      function checkRoleHierarchy(target) {
+        if (!target) return false;
+        if (target.id === currentUser.id) {
           showLocalSystemMessage("You cannot perform this action on yourself.", true);
-          return;
+          return false;
         }
-        if (targetUser.role === "owner" && currentUserRole !== "owner") {
+        if (target.role === "owner" && currentUserRole !== "owner") {
           showLocalSystemMessage("You cannot perform this action on an Owner.", true);
-          return;
+          return false;
         }
-        if (targetUser.role === "admin" && currentUserRole === "admin") {
+        if (target.role === "admin" && currentUserRole === "admin") {
           showLocalSystemMessage("You cannot perform this action on another Admin.", true);
-          return;
+          return false;
         }
+        return true;
       }
 
       // ── PUBLIC VOICE CHAT COMMAND ──
       if (commandKey === "/publicvc") {
         const roomId = "vc-pub-" + Math.random().toString(36).substring(2, 9);
-        
-        await supabase.from("vc_rooms").insert([{
-          room_id: roomId,
-          created_by: currentUsername,
-          is_public: true
-        }]);
-
+        await supabase.from("vc_rooms").insert([{ room_id: roomId, created_by: currentUsername, is_public: true }]);
         await supabase.from("messages").insert([{
           text: `@${currentUsername} started a public voice chat!`,
           username: "Server",
@@ -1658,15 +1678,14 @@ async function startChat(user) {
           type: "vc_invite",
           room_id: roomId
         }]);
-
         joinVoiceRoom(roomId);
         return;
       }
 
-      // ── PRIVATE VOICE CHAT COMMAND (/privatevc @user1 @user2) ──
+      // ── PRIVATE VOICE CHAT COMMAND ──
       if (commandKey === "/privatevc") {
-        const mentionsPrivate = textToSend.match(/@\w+/g) || [];
-        const targetUsernamesPrivate = mentionsPrivate.map(m => m.replace("@", "").toLowerCase());
+        const mentionsPrivate = textToSend.match(/@[^\s]+/g) || [];
+        const targetUsernamesPrivate = mentionsPrivate.map(m => m.replace("@", "").replace(/[.,!?;:]+$/, '').toLowerCase()).filter(Boolean);
 
         if (targetUsernamesPrivate.length === 0) {
           showLocalSystemMessage("Syntax: /privatevc @username1 @username2", true);
@@ -1696,7 +1715,9 @@ async function startChat(user) {
         return;
       }
 
+      // ── MODERATION: MUTE ──
       if (commandKey === "/mute" && isAdminPlus) {
+        const targetUser = await resolveTargetUser();
         const durationStr = segments[2];
         const durationMs = parseDurationString(durationStr);
         const reason = segments.slice(3).join(" ") || "No explicit reason logged.";
@@ -1705,140 +1726,147 @@ async function startChat(user) {
           showLocalSystemMessage("Syntax: /mute @username [time, e.g., 45s/30m/4h] [reason]", true);
           return;
         }
-        const { error } = await supabase.from("users").update({ mutedUntil: Date.now() + durationMs }).eq("id", targetUser.id);
-        if (error) {
-          showLocalSystemMessage(`Failed to mute user: ${error.message}`, true);
-          return;
-        }
+        if (!checkRoleHierarchy(targetUser)) return;
+
+        const { error } = await supabase.from("users").update({ "mutedUntil": Date.now() + durationMs }).eq("id", targetUser.id);
+        if (error) { showLocalSystemMessage(`Failed to mute user: ${error.message}`, true); return; }
         showLocalSystemMessage(`Muted user @${targetUser.username} for ${durationStr}. Reason: ${reason}`, false);
         return;
       }
 
+      // ── MODERATION: UNMUTE ──
       if (commandKey === "/unmute" && isAdminPlus) {
+        const targetUser = await resolveTargetUser();
         if (!targetUser) { showLocalSystemMessage("Syntax: /unmute @username", true); return; }
-        const { error } = await supabase.from("users").update({ mutedUntil: 0 }).eq("id", targetUser.id);
-        if (error) {
-          showLocalSystemMessage(`Failed to unmute user: ${error.message}`, true);
-          return;
-        }
+        const { error } = await supabase.from("users").update({ "mutedUntil": 0 }).eq("id", targetUser.id);
+        if (error) { showLocalSystemMessage(`Failed to unmute user: ${error.message}`, true); return; }
         showLocalSystemMessage(`Unmuted user @${targetUser.username}.`, false);
         return;
       }
 
-      if (commandKey === "/admin" && isOwnerOnly) {
-        if (!targetUser) { showLocalSystemMessage("Syntax: /admin @username", true); return; }
-        const { error } = await supabase.from("users").update({ role: "admin" }).eq("id", targetUser.id);
-        if (error) {
-          showLocalSystemMessage(`Failed to promote user: ${error.message}`, true);
-          return;
-        }
-        showLocalSystemMessage(`Promoted @${targetUser.username} to Admin.`, false);
-        return;
-      }
-
-      if (commandKey === "/unadmin" && isOwnerOnly) {
-        if (!targetUser) { showLocalSystemMessage("Syntax: /unadmin @username", true); return; }
-        const { error } = await supabase.from("users").update({ role: "user" }).eq("id", targetUser.id);
-        if (error) {
-          showLocalSystemMessage(`Failed to demote user: ${error.message}`, true);
-          return;
-        }
-        showLocalSystemMessage(`Demoted @${targetUser.username} to standard User level.`, false);
-        return;
-      }
-
-      if (commandKey === "/owner" && isOwnerOnly) {
-        if (!targetUser) { showLocalSystemMessage("Syntax: /owner @username", true); return; }
-        const { error } = await supabase.from("users").update({ role: "owner" }).eq("id", targetUser.id);
-        if (error) {
-          showLocalSystemMessage(`Failed to promote user: ${error.message}`, true);
-          return;
-        }
-        showLocalSystemMessage(`Promoted @${targetUser.username} to Owner privileges.`, false);
-        return;
-      }
-
-      if (commandKey === "/unowner" && isOwnerOnly) {
-        if (!targetUser) { showLocalSystemMessage("Syntax: /unowner @username", true); return; }
-        const { error } = await supabase.from("users").update({ role: "admin" }).eq("id", targetUser.id);
-        if (error) {
-          showLocalSystemMessage(`Failed to demote user: ${error.message}`, true);
-          return;
-        }
-        showLocalSystemMessage(`Demoted @${targetUser.username} to Admin.`, false);
-        return;
-      }
-
-      if (commandKey === "/subscription" && isOwnerOnly) {
-        const chosenRank = segments[2]?.toLowerCase();
-        if (!targetUser || (chosenRank !== "basic" && chosenRank !== "premium")) { showLocalSystemMessage("Syntax: /subscription @username basic/premium", true); return; }
-        const { error } = await supabase.from("users").update({ rank: chosenRank }).eq("id", targetUser.id);
-        if (error) {
-          showLocalSystemMessage(`Failed to update subscription: ${error.message}`, true);
-          return;
-        }
-        showLocalSystemMessage(`Updated subscription framework parameter for @${targetUser.username} to [${chosenRank}].`, false);
-        await loadAndCacheAllUsers();
-        return;
-      }
-
-      if (commandKey === "/deleteuser" && isOwnerOnly) {
-        if (!targetUser) { showLocalSystemMessage("Syntax: /deleteuser @username", true); return; }
-        const { error } = await supabase.from("users").delete().eq("id", targetUser.id);
-        if (error) {
-          showLocalSystemMessage(`Failed to delete user: ${error.message}`, true);
-          return;
-        }
-        showLocalSystemMessage(`Purged user database authentication parameters for user identity: @${targetUser.username}.`, false);
-        await loadAndCacheAllUsers();
-        return;
-      }
-
+      // ── MODERATION: BAN ──
       if (commandKey === "/ban" && isAdminPlus) {
+        const targetUser = await resolveTargetUser();
         const durationStr = segments[2];
         const durationMs = parseDurationString(durationStr);
         const reason = segments.slice(3).join(" ") || "No explicit reason logged.";
 
         if (!targetUser || !durationMs) {
-          showLocalSystemMessage("Syntax: /ban @username [time, e.g., 10s/2h/15d/3mo] [reason]", true);
+          showLocalSystemMessage("Syntax: /ban @username [time, e.g., 10s/2h/15d] [reason]", true);
           return;
         }
-        const { error } = await supabase.from("users").update({ bannedUntil: Date.now() + durationMs }).eq("id", targetUser.id);
-        if (error) {
-          showLocalSystemMessage(`Failed to ban user: ${error.message}`, true);
-          return;
-        }
-        showLocalSystemMessage(`Banned user @${targetUser.username} for ${durationStr}. Reason: ${reason}`, false);
+        if (!checkRoleHierarchy(targetUser)) return;
+
+        const banTimestamp = Date.now() + durationMs;
+        const { error } = await supabase.from("users").update({ "bannedUntil": banTimestamp, "banReason": reason }).eq("id", targetUser.id);
+
+        if (error) { showLocalSystemMessage(`Failed to ban user: ${error.message}`, true); return; }
+        showLocalSystemMessage(`Successfully banned @${targetUser.username} for ${durationStr}. Reason: ${reason}`, false);
         return;
       }
 
+      // ── MODERATION: UNBAN ──
       if (commandKey === "/unban" && isAdminPlus) {
+        const targetUser = await resolveTargetUser();
         if (!targetUser) { showLocalSystemMessage("Syntax: /unban @username", true); return; }
-        const { error } = await supabase.from("users").update({ bannedUntil: 0 }).eq("id", targetUser.id);
-        if (error) {
-          showLocalSystemMessage(`Failed to unban user: ${error.message}`, true);
-          return;
-        }
-        showLocalSystemMessage(`Lifted server entry ban parameters from user profile @${targetUser.username}.`, false);
+        const { error } = await supabase.from("users").update({ "bannedUntil": 0, "banReason": null }).eq("id", targetUser.id);
+        if (error) { showLocalSystemMessage(`Failed to unban user: ${error.message}`, true); return; }
+        showLocalSystemMessage(`Lifted ban from user @${targetUser.username}.`, false);
         return;
       }
 
+      // ── MODERATION: PERMABAN ──
       if (commandKey === "/permaban" && isAdminPlus) {
+        const targetUser = await resolveTargetUser();
         if (!targetUser) { showLocalSystemMessage("Syntax: /permaban @username [reason]", true); return; }
+        if (!checkRoleHierarchy(targetUser)) return;
+
         const reason = segments.slice(2).join(" ") || "No explicit reason logged.";
-        const { error } = await supabase.from("users").update({ bannedUntil: Date.now() + (100 * 365 * 24 * 60 * 60 * 1000) }).eq("id", targetUser.id);
-        if (error) {
-          showLocalSystemMessage(`Failed to permaban user: ${error.message}`, true);
-          return;
-        }
+        const permaTimestamp = Date.now() + (100 * 365 * 24 * 60 * 60 * 1000); // 100 years
+
+        const { error } = await supabase.from("users").update({ "bannedUntil": permaTimestamp, "banReason": reason }).eq("id", targetUser.id);
+        if (error) { showLocalSystemMessage(`Failed to permaban user: ${error.message}`, true); return; }
         showLocalSystemMessage(`Permanently banned @${targetUser.username}. Reason: ${reason}`, false);
+        return;
+      }
+
+      // ── MODERATION: KICK (2 minute temporary ban) ──
+      if (commandKey === "/kick" && isAdminPlus) {
+        const targetUser = await resolveTargetUser();
+        if (!targetUser) { showLocalSystemMessage("Syntax: /kick @username [reason]", true); return; }
+        if (!checkRoleHierarchy(targetUser)) return;
+
+        const reason = segments.slice(2).join(" ") || "No explicit reason logged.";
+        const kickTimestamp = Date.now() + (2 * 60 * 1000);
+
+        const { error } = await supabase.from("users").update({ "bannedUntil": kickTimestamp, "banReason": reason }).eq("id", targetUser.id);
+        if (error) { showLocalSystemMessage(`Failed to kick user: ${error.message}`, true); return; }
+        showLocalSystemMessage(`Kicked user @${targetUser.username} for 2 minutes. Reason: ${reason}`, false);
+        return;
+      }
+
+      // ── OWNER COMMANDS ──
+      if (commandKey === "/admin" && isOwnerOnly) {
+        const targetUser = await resolveTargetUser();
+        if (!targetUser) { showLocalSystemMessage("Syntax: /admin @username", true); return; }
+        const { error } = await supabase.from("users").update({ role: "admin" }).eq("id", targetUser.id);
+        if (error) { showLocalSystemMessage(`Failed to promote user: ${error.message}`, true); return; }
+        showLocalSystemMessage(`Promoted @${targetUser.username} to Admin.`, false);
+        return;
+      }
+
+      if (commandKey === "/unadmin" && isOwnerOnly) {
+        const targetUser = await resolveTargetUser();
+        if (!targetUser) { showLocalSystemMessage("Syntax: /unadmin @username", true); return; }
+        const { error } = await supabase.from("users").update({ role: "user" }).eq("id", targetUser.id);
+        if (error) { showLocalSystemMessage(`Failed to demote user: ${error.message}`, true); return; }
+        showLocalSystemMessage(`Demoted @${targetUser.username} to standard User level.`, false);
+        return;
+      }
+
+      if (commandKey === "/owner" && isOwnerOnly) {
+        const targetUser = await resolveTargetUser();
+        if (!targetUser) { showLocalSystemMessage("Syntax: /owner @username", true); return; }
+        const { error } = await supabase.from("users").update({ role: "owner" }).eq("id", targetUser.id);
+        if (error) { showLocalSystemMessage(`Failed to promote user: ${error.message}`, true); return; }
+        showLocalSystemMessage(`Promoted @${targetUser.username} to Owner privileges.`, false);
+        return;
+      }
+
+      if (commandKey === "/unowner" && isOwnerOnly) {
+        const targetUser = await resolveTargetUser();
+        if (!targetUser) { showLocalSystemMessage("Syntax: /unowner @username", true); return; }
+        const { error } = await supabase.from("users").update({ role: "admin" }).eq("id", targetUser.id);
+        if (error) { showLocalSystemMessage(`Failed to demote user: ${error.message}`, true); return; }
+        showLocalSystemMessage(`Demoted @${targetUser.username} to Admin.`, false);
+        return;
+      }
+
+      if (commandKey === "/subscription" && isOwnerOnly) {
+        const targetUser = await resolveTargetUser();
+        const chosenRank = segments[2]?.toLowerCase();
+        if (!targetUser || (chosenRank !== "basic" && chosenRank !== "premium")) { showLocalSystemMessage("Syntax: /subscription @username basic/premium", true); return; }
+        const { error } = await supabase.from("users").update({ rank: chosenRank }).eq("id", targetUser.id);
+        if (error) { showLocalSystemMessage(`Failed to update subscription: ${error.message}`, true); return; }
+        showLocalSystemMessage(`Updated subscription parameters for @${targetUser.username} to [${chosenRank}].`, false);
+        await loadAndCacheAllUsers();
+        return;
+      }
+
+      if (commandKey === "/deleteuser" && isOwnerOnly) {
+        const targetUser = await resolveTargetUser();
+        if (!targetUser) { showLocalSystemMessage("Syntax: /deleteuser @username", true); return; }
+        const { error } = await supabase.from("users").delete().eq("id", targetUser.id);
+        if (error) { showLocalSystemMessage(`Failed to delete user: ${error.message}`, true); return; }
+        showLocalSystemMessage(`Purged user database records for user identity: @${targetUser.username}.`, false);
+        await loadAndCacheAllUsers();
         return;
       }
 
       if (commandKey === "/deleteall" && isAdminPlus) {
         await supabase.from("messages").delete().not('id', 'is', null);
         await supabase.from("whispers").delete().not('id', 'is', null);
-        showLocalSystemMessage("Database tables successfully optimized. Purged records completely.", false);
+        showLocalSystemMessage("Database messages and whispers wiped.", false);
         return;
       }
 
@@ -1849,12 +1877,12 @@ async function startChat(user) {
         localPendingQueue = [];
         clearEphemeralSystemMessages();
         renderMessages();
-        showLocalSystemMessage("Local layout records cleared successfully.");
+        showLocalSystemMessage("Local chat view cleared.");
         return;
       }
 
       if (commandKey === "/help") {
-        let helpString = "<span style='text-transform: uppercase; font-size: 0.8rem; color: #6c63ff; font-weight:700;'>Available Systems Commands Matrix:</span><br>";
+        let helpString = "<span style='text-transform: uppercase; font-size: 0.8rem; color: #6c63ff; font-weight:700;'>Available Commands Matrix:</span><br>";
         EX_COMMANDS.forEach(c => {
           if (["/mute", "/unmute", "/ban", "/unban", "/permaban", "/deleteall", "/kick", "/warn"].includes(c.name) && !isAdminPlus) return;
           if (["/admin", "/unadmin", "/owner", "/unowner", "/subscription", "/deleteuser"].includes(c.name) && !isOwnerOnly) return;
@@ -1864,19 +1892,8 @@ async function startChat(user) {
         return;
       }
 
-      if (commandKey === "/kick" && isAdminPlus) {
-        if (!targetUser) { showLocalSystemMessage("Syntax: /kick @username [reason]", true); return; }
-        const reason = segments.slice(2).join(" ") || "No explicit reason logged.";
-        const { error } = await supabase.from("users").update({ bannedUntil: Date.now() + (2 * 60 * 1000) }).eq("id", targetUser.id);
-        if (error) {
-          showLocalSystemMessage(`Failed to kick user: ${error.message}`, true);
-          return;
-        }
-        showLocalSystemMessage(`Kicked user @${targetUser.username} for 2 minutes. Reason: ${reason}`, false);
-        return;
-      }
-
       if (commandKey === "/warn" && isAdminPlus) {
+        const targetUser = await resolveTargetUser();
         if (!targetUser || !segments.slice(2).join(" ")) { showLocalSystemMessage("Syntax: /warn @username [reason]", true); return; }
         const payloadText = segments.slice(2).join(" ");
         await supabase.from("messages").insert([{
@@ -1889,18 +1906,18 @@ async function startChat(user) {
       }
 
       if (commandKey === "/undo") {
-        if (!lastActionLog) { showLocalSystemMessage("No valid local environment modifications recorded on the action track stack.", true); return; }
+        if (!lastActionLog) { showLocalSystemMessage("No valid local environment modifications recorded.", true); return; }
         try {
           if (lastActionLog.type === "delete") {
             await supabase.from(lastActionLog.collection).insert([lastActionLog.data]);
-            showLocalSystemMessage("Undo Executed: Restored deleted document record.");
+            showLocalSystemMessage("Undo Executed: Restored deleted record.");
           } else if (lastActionLog.type === "edit") {
             await supabase.from(lastActionLog.collection).update({ text: lastActionLog.data.text }).eq("id", lastActionLog.id);
-            showLocalSystemMessage("Undo Executed: Reverted text modifications to previous step state.");
+            showLocalSystemMessage("Undo Executed: Reverted text modifications.");
           }
           lastActionLog = null;
         } catch(err) {
-          showLocalSystemMessage("Failed to apply document restoration step parameters.", true);
+          showLocalSystemMessage("Failed to restore record.", true);
         }
         return;
       }
@@ -1923,10 +1940,10 @@ async function startChat(user) {
       while (i < segments.length) {
         let token = segments[i];
         if (token.startsWith("@")) {
-          targetUsernames.push(token.substring(1).toLowerCase());
+          targetUsernames.push(token.substring(1).replace(/[.,!?;:]+$/, '').toLowerCase());
           i++;
         } else if (targetUsernames.length === 0) {
-          targetUsernames.push(token.toLowerCase());
+          targetUsernames.push(token.toLowerCase().replace(/[.,!?;:]+$/, ''));
           i++;
         } else {
           break;
@@ -2223,7 +2240,11 @@ function displayMessage(scroller, msgData) {
     const fileName = rawText.split('/').pop().split('?')[0];
     textContent = `<a href="${escapeHtml(rawText)}" target="_blank" download style="display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.06); padding: 8px 12px; border-radius: 6px; color: #3b82f6; text-decoration: none; font-weight: 600; margin-top: 4px;">Download ${escapeHtml(fileName)}</a>`;
   } else {
-    textContent = escapeHtml(rawText).replace(/@([a-zA-Z0-9_\-]+)/g, '<span style="color: #3b82f6; background: rgba(59,130,246,0.15); padding: 1px 5px; border-radius: 4px; font-weight: 600; border: 1px solid rgba(59,130,246,0.2);">@$1</span>');
+    textContent = escapeHtml(rawText).replace(/@([^\s]+)/g, (match, p1) => {
+      const cleanName = p1.replace(/[.,!?;:]+$/, '');
+      const trailing = p1.slice(cleanName.length);
+      return `<span style="color: #3b82f6; background: rgba(59,130,246,0.15); padding: 1px 5px; border-radius: 4px; font-weight: 600; border: 1px solid rgba(59,130,246,0.2);">@${cleanName}</span>${trailing}`;
+    });
   }
 
   let layoutStructuralString = "";
@@ -2702,7 +2723,14 @@ function getGradient(username) {
 async function loadAvatarImageForUser(userId) {
   if (!userId) return null;
 
-  const publicUrl = supabase.storage.from("chat-files").getPublicUrl(`avatars/${userId}.jpg`).data.publicUrl;
+  // Check if the user has an entry in our loaded avatar storage index
+  const entry = avatarIndexByUserId.get(userId);
+  const avatarFileName = entry ? entry.fileName : `${userId}.jpg`;
+
+  const publicUrl = supabase.storage
+    .from("chat-files")
+    .getPublicUrl(`avatars/${avatarFileName}`).data.publicUrl;
+
   const response = await fetch(publicUrl, { cache: "no-store" });
   if (!response.ok) return null;
 
@@ -2729,6 +2757,13 @@ async function decorateAvatarElement(element, userId, username, fallbackText) {
   const gradient = getGradient(username || "User");
   element.style.background = "var(--card)";
   element.innerHTML = "";
+
+  // Skip network fetch completely if the user hasn't uploaded an avatar
+  if (!userId || !avatarIndexByUserId.has(userId)) {
+    element.style.background = `linear-gradient(135deg, ${gradient})`;
+    element.textContent = fallbackText;
+    return;
+  }
 
   const image = await loadAvatarImageForUser(userId).catch(() => null);
   if (!image) {
