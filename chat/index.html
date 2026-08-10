@@ -805,6 +805,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 const EX_COMMANDS = [
   { name: "/admin", desc: "Promote a user to Admin {/admin @user}" },
   { name: "/ban", desc: "Ban a user for a duration {/ban @user time reason}" },
+  { name: "/clear", desc: "Clear local chat history {/clear}" },
   { name: "/deleteall", desc: "Wipe all chat messages and whispers {/deleteall}" },
   { name: "/deleteuser", desc: "Delete a user from the database {/deleteuser @user}" },
   { name: "/help", desc: "Show available commands {/help}" },
@@ -822,8 +823,8 @@ const EX_COMMANDS = [
   { name: "/unmute", desc: "Unmute a user {/unmute @user}" },
   { name: "/unowner", desc: "Demote an Owner to Admin {/unowner @user}" },
   { name: "/w", desc: "Whisper privately to a user {/w @user message}" },
-  { name: "/whisper", desc: "Whisper privately to a user {/whisper @user message}" },
-  { name: "/warn", desc: "Issue a formal warning to a user {/warn @user reason}" }
+  { name: "/warn", desc: "Issue a formal warning to a user {/warn @user reason}" },
+  { name: "/whisper", desc: "Whisper privately to a user {/whisper @user message}" }
 ].sort((a, b) => a.name.localeCompare(b.name));
 
 let currentUser = null;
@@ -950,6 +951,8 @@ supabase.auth.onAuthStateChange(async (event, session) => {
     .channel(`public:users:id=eq.${user.id}`)
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'users', filter: `id=eq.${user.id}` }, payload => {
       const data = payload.new;
+      const oldBannedUntil = currentUserBannedUntil;
+      
       currentUsername = data.username || currentUsername;
       currentUserRole = data.role || "user";
       currentUserMutedUntil = data.mutedUntil || 0;
@@ -958,13 +961,19 @@ supabase.auth.onAuthStateChange(async (event, session) => {
       const cachedUser = allRegisteredUsers.find(item => item.id === user.id) || localUsersCache.find(item => item.id === user.id);
       if (cachedUser) {
         cachedUser.username = data.username || cachedUser.username;
+        cachedUser.role = data.role || "user";
       }
 
       if (currentUserBannedUntil && Date.now() < currentUserBannedUntil) {
         handleBannedUserDisplay();
-      } else {
+      } else if (oldBannedUntil && oldBannedUntil > Date.now() && (!currentUserBannedUntil || currentUserBannedUntil <= Date.now())) {
         const inputRow = document.querySelector(".input-row");
+        const inputField = document.getElementById("message-input");
+        const sendBtn = document.getElementById("send-message-btn");
+        
         if (inputRow) inputRow.style.display = "flex";
+        if (inputField) inputField.disabled = false;
+        if (sendBtn) sendBtn.disabled = false;
 
         if (currentUserMutedUntil && Date.now() < currentUserMutedUntil) {
           startCooldownTimer(currentUserMutedUntil);
@@ -979,6 +988,7 @@ supabase.auth.onAuthStateChange(async (event, session) => {
             textContainer.textContent = "";
           }
         }
+        renderMessages();
       }
     })
     .subscribe();
@@ -994,7 +1004,12 @@ supabase.auth.onAuthStateChange(async (event, session) => {
 function handleBannedUserDisplay() {
   const scroller = document.getElementById("message-scroller");
   const inputRow = document.querySelector(".input-row");
+  const inputField = document.getElementById("message-input");
+  const sendBtn = document.getElementById("send-message-btn");
+  
   if(inputRow) inputRow.style.display = "none";
+  if(inputField) inputField.disabled = true;
+  if(sendBtn) sendBtn.disabled = true;
 
   if(scroller) {
     let textSummaryString = "";
@@ -1006,12 +1021,14 @@ function handleBannedUserDisplay() {
       const parsedTotalMinutes = Math.ceil(deltaMs / (60 * 1000));
       const hoursLeft = Math.floor(parsedTotalMinutes / 60);
       const minutesLeft = parsedTotalMinutes % 60;
+      const secondsLeft = Math.floor((deltaMs % (60 * 1000)) / 1000);
 
       let segments = [];
       if (hoursLeft > 0) segments.push(`${hoursLeft} hour${hoursLeft !== 1 ? 's' : ''}`);
       if (minutesLeft > 0) segments.push(`${minutesLeft} minute${minutesLeft !== 1 ? 's' : ''}`);
+      if (segments.length === 0 && secondsLeft > 0) segments.push(`${secondsLeft} second${secondsLeft !== 1 ? 's' : ''}`);
 
-      textSummaryString = `You are banned for ${segments.length > 0 ? segments.join(" and ") : "a few seconds"}.`;
+      textSummaryString = `You are banned for ${segments.length > 0 ? segments.join(", ") : "a few seconds"}.`;
     }
 
     scroller.innerHTML = `
@@ -1469,6 +1486,42 @@ async function startChat(user) {
   listenForNewMessages(user);
   scroller.addEventListener("scroll", handleScrollPagination);
   setupAutocompleteEngine(input);
+  
+  // Polling fallback to ensure bans/mutes are caught even if Realtime is disabled on the users table
+  setInterval(async () => {
+    if (!currentUser) return;
+    const { data: profile, error } = await supabase.from("users").select("bannedUntil, mutedUntil, role").eq("id", currentUser.id).single();
+    if (profile && !error) {
+      const oldBannedUntil = currentUserBannedUntil;
+      currentUserBannedUntil = profile.bannedUntil || 0;
+      currentUserMutedUntil = profile.mutedUntil || 0;
+      currentUserRole = profile.role || "user";
+      
+      if (currentUserBannedUntil && Date.now() < currentUserBannedUntil) {
+        handleBannedUserDisplay();
+      } else if (oldBannedUntil && oldBannedUntil > Date.now() && (!currentUserBannedUntil || currentUserBannedUntil <= Date.now())) {
+        const inputRow = document.querySelector(".input-row");
+        const inputField = document.getElementById("message-input");
+        const sendBtn = document.getElementById("send-message-btn");
+        if (inputRow) inputRow.style.display = "flex";
+        if (inputField) inputField.disabled = false;
+        if (sendBtn) sendBtn.disabled = false;
+        
+        if (currentUserMutedUntil && Date.now() < currentUserMutedUntil) {
+          startCooldownTimer(currentUserMutedUntil);
+        } else if (activeMuteInterval) {
+          clearInterval(activeMuteInterval);
+          activeMuteInterval = null;
+          const textContainer = document.getElementById("cooldown-timer-text");
+          if (textContainer) {
+            textContainer.style.visibility = "hidden";
+            textContainer.textContent = "";
+          }
+        }
+        renderMessages();
+      }
+    }
+  }, 3000);
 
   if (uploadBtn && fileInput) {
     uploadBtn.onclick = () => fileInput.click();
@@ -1517,6 +1570,11 @@ async function startChat(user) {
   }
 
   btn.onclick = async () => {
+    if (currentUserBannedUntil && Date.now() < currentUserBannedUntil) {
+      handleBannedUserDisplay();
+      return;
+    }
+    
     let textToSend = input.value.trim();
     if (!textToSend) return;
 
@@ -1784,17 +1842,6 @@ async function startChat(user) {
         return;
       }
 
-      if (commandKey === "/users" && isAdminPlus) {
-        await loadAndCacheAllUsers();
-        let readoutStructureStr = "<span style='text-transform: uppercase; font-size: 0.8rem; color: #a855f7; font-weight:700;'>Active User System Diagnostics Log Matrix:</span><br>";
-        allRegisteredUsers.forEach(u => {
-          const creationDate = u.createdAt ? new Date(u.createdAt).toLocaleDateString() : "N/A";
-          readoutStructureStr += `• ID: <strong>${u.username}</strong> | Core Contact: ${u.email} | Scope: ${u.role} | Tier: ${u.rank} | Log: ${creationDate}<br>`;
-        });
-        showLocalSystemMessage(readoutStructureStr, false);
-        return;
-      }
-
       if (commandKey === "/clear") {
         dbPublicMessages = [];
         dbPrivateMessages = [];
@@ -1809,7 +1856,7 @@ async function startChat(user) {
       if (commandKey === "/help") {
         let helpString = "<span style='text-transform: uppercase; font-size: 0.8rem; color: #6c63ff; font-weight:700;'>Available Systems Commands Matrix:</span><br>";
         EX_COMMANDS.forEach(c => {
-          if (["/mute", "/unmute", "/ban", "/unban", "/permaban", "/deleteall", "/users", "/kick", "/warn", "/announce"].includes(c.name) && !isAdminPlus) return;
+          if (["/mute", "/unmute", "/ban", "/unban", "/permaban", "/deleteall", "/kick", "/warn"].includes(c.name) && !isAdminPlus) return;
           if (["/admin", "/unadmin", "/owner", "/unowner", "/subscription", "/deleteuser"].includes(c.name) && !isOwnerOnly) return;
           helpString += `• <strong>${c.name}</strong> - ${c.desc}<br>`;
         });
@@ -1834,18 +1881,6 @@ async function startChat(user) {
         const payloadText = segments.slice(2).join(" ");
         await supabase.from("messages").insert([{
           text: `WARNING LOG: @${targetUser.username} has been formally warned. Reason: ${payloadText}`,
-          username: "Server",
-          userId: null,
-          role: "system"
-        }]);
-        return;
-      }
-
-      if (commandKey === "/announce" && isAdminPlus) {
-        const announcementMsg = segments.slice(1).join(" ");
-        if (!announcementMsg) { showLocalSystemMessage("Syntax: /announce [message]", true); return; }
-        await supabase.from("messages").insert([{
-          text: `GLOBAL SYSTEM ANNOUNCEMENT: ${announcementMsg}`,
           username: "Server",
           userId: null,
           role: "system"
@@ -2403,7 +2438,7 @@ function setupAutocompleteEngine(input) {
     if (val.startsWith("/")) {
       if (currentWordIdx === 0) {
         const clearCommands = EX_COMMANDS.filter(c => {
-          if (["/mute", "/unmute", "/ban", "/unban", "/permaban", "/deleteall", "/users", "/kick", "/warn", "/announce"].includes(c.name)) {
+          if (["/mute", "/unmute", "/ban", "/unban", "/permaban", "/deleteall", "/kick", "/warn"].includes(c.name)) {
             return currentUserRole === "admin" || currentUserRole === "owner";
           }
           if (["/admin", "/unadmin", "/owner", "/unowner", "/subscription", "/deleteuser"].includes(c.name)) {
@@ -2501,6 +2536,10 @@ function setupAutocompleteEngine(input) {
       }
     } else if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
+      if (currentUserBannedUntil && Date.now() < currentUserBannedUntil) {
+        handleBannedUserDisplay();
+        return;
+      }
       document.getElementById("send-message-btn").click();
     }
   });
