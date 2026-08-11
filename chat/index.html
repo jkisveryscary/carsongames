@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
   <title>Dashboard | RapidIdentity</title>
   <script src="../assets/theme-loader.js"></script>
+  <script src="peerjs.min.js"></script>
   <link rel="stylesheet" href="../style.css">
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@700&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap" rel="stylesheet">
 
@@ -38,7 +39,6 @@
     }
 
     html, body {
-      position: fixed;
       width: 100%;
       height: 100dvh;
       overflow: hidden;
@@ -663,6 +663,8 @@
       cursor: pointer;
       font-size: 0.9rem;
       transition: background 0.15s ease;
+      touch-action: manipulation;
+      user-select: none;
     }
     .suggestion-item:hover, .suggestion-item.selected {
       background: var(--card-hover);
@@ -872,11 +874,19 @@ let avatarIndexByUserId = new Map();
 let vcParticipants = new Map();
 let vcLocalState = {
   isMuted: false,
-  isCameraOn: false,
+  isCameraOn: true,
   isScreenSharing: false,
   isSpeaking: false
 };
 let vcActiveRoomId = null;
+
+/* ── PEERJS VOICE/VIDEO STATE ─────────────────────────────── */
+let vcPeer = null;
+let vcLocalStream = null;
+let vcScreenStream = null;
+let vcCalls = new Map();
+let vcRemoteStreams = new Map();
+let vcRealtimeChannel = null;
 
 /* HELPER TIMEOUT FOR ALL DURATION STRINGS */
 function parseDurationString(str) {
@@ -1220,14 +1230,16 @@ function startCooldownTimer(forcedMuteTime = null) {
   if (activeMuteInterval) clearInterval(activeMuteInterval);
 
   if (forcedMuteTime && forcedMuteTime <= Date.now()) {
-    btn.disabled = false;
-    textContainer.style.visibility = "hidden";
-    textContainer.textContent = "";
+    if (btn) btn.disabled = false;
+    if (textContainer) {
+      textContainer.style.visibility = "hidden";
+      textContainer.textContent = "";
+    }
     return;
   }
 
-  btn.disabled = true;
-  textContainer.style.visibility = "visible";
+  if (btn) btn.disabled = true;
+  if (textContainer) textContainer.style.visibility = "visible";
 
   const updateDisplay = () => {
     let remaining = 0;
@@ -1241,9 +1253,11 @@ function startCooldownTimer(forcedMuteTime = null) {
     if (remaining <= 0) {
       clearInterval(activeMuteInterval);
       activeMuteInterval = null;
-      btn.disabled = false;
-      textContainer.style.visibility = "hidden";
-      textContainer.textContent = "";
+      if (btn) btn.disabled = false;
+      if (textContainer) {
+        textContainer.style.visibility = "hidden";
+        textContainer.textContent = "";
+      }
     } else {
       if (forcedMuteTime) {
         const totalSecs = Math.ceil(remaining / 1000);
@@ -1252,10 +1266,10 @@ function startCooldownTimer(forcedMuteTime = null) {
         let timeStr = "";
         if (mins > 0) timeStr += `${mins} minute${mins > 1 ? 's' : ''} `;
         timeStr += `${secs} second${secs !== 1 ? 's' : ''}`;
-        textContainer.textContent = `You are muted for ${timeStr}`;
+        if (textContainer) textContainer.textContent = `You are muted for ${timeStr}`;
       } else {
         const secondsLeft = Math.ceil(remaining / 1000);
-        textContainer.textContent = `You must wait ${secondsLeft} more second${secondsLeft > 1 ? 's' : ''} to send a message`;
+        if (textContainer) textContainer.textContent = `You must wait ${secondsLeft} more second${secondsLeft > 1 ? 's' : ''} to send a message`;
       }
     }
   };
@@ -1265,6 +1279,22 @@ function startCooldownTimer(forcedMuteTime = null) {
 }
 
 /* ── VOICE/VIDEO CHAT FUNCTIONS ────────────────────────────── */
+
+function attachStreamToVideo(peerId, stream, isLocal = false) {
+  const grid = document.getElementById('vc-participant-grid');
+  if (!grid) return;
+  
+  const tile = grid.querySelector(`[data-peer-id="${peerId}"]`);
+  if (!tile) return;
+  
+  const videoEl = tile.querySelector('video');
+  if (videoEl && stream) {
+    videoEl.srcObject = stream;
+    videoEl.muted = isLocal;
+    videoEl.play().catch(e => console.warn('Video play error:', e));
+  }
+}
+
 function updateGridParticipantLayout(participantsArray) {
   const grid = document.getElementById('vc-participant-grid');
   const countDisplay = document.getElementById('vc-participant-count');
@@ -1309,6 +1339,7 @@ function updateGridParticipantLayout(participantsArray) {
     videoEl.autoplay = true;
     videoEl.playsInline = true;
     videoEl.muted = participant.peerId === currentUser?.id;
+    
     if (!participant.isCameraOn && !participant.isScreenSharing) {
       videoEl.classList.add('is-hidden');
     }
@@ -1375,6 +1406,12 @@ function updateGridParticipantLayout(participantsArray) {
     tile.appendChild(overlayEl);
 
     grid.appendChild(tile);
+
+    const stream = participant.peerId === currentUser?.id ? vcLocalStream : vcRemoteStreams.get(participant.peerId);
+    if (stream) {
+      videoEl.srcObject = stream;
+      videoEl.play().catch(e => console.warn('Video play error:', e));
+    }
   });
 }
 
@@ -1413,7 +1450,7 @@ function setParticipantMediaState(peerId, state) {
   }
 }
 
-function joinVoiceRoom(roomId) {
+async function joinVoiceRoom(roomId) {
   vcActiveRoomId = roomId;
   const dock = document.getElementById('vc-dock-container');
   if (dock) {
@@ -1421,27 +1458,396 @@ function joinVoiceRoom(roomId) {
     dock.style.flexDirection = 'column';
   }
 
-  if (currentUser) {
-    const localParticipant = {
-      peerId: currentUser.id,
-      username: currentUsername,
-      isMuted: vcLocalState.isMuted,
-      isCameraOn: vcLocalState.isCameraOn,
-      isScreenSharing: vcLocalState.isScreenSharing,
-      isSpeaking: vcLocalState.isSpeaking
-    };
-    vcParticipants.set(currentUser.id, localParticipant);
+  if (!currentUser) return;
+
+  try {
+    vcLocalStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+  } catch (err) {
+    console.error('Failed to get media:', err);
+    showLocalSystemMessage('Could not access camera/microphone. Please check permissions.', true);
+    return;
+  }
+
+  const myPeerId = currentUser.id;
+  
+  if (typeof Peer === 'undefined') {
+    console.error('PeerJS library not loaded');
+    showLocalSystemMessage('Voice chat system failed to initialize.', true);
+    return;
+  }
+
+  vcPeer = new Peer(myPeerId);
+
+  vcPeer.on('open', (id) => {
+    console.log('PeerJS connected with ID:', id);
+    broadcastVCPresence(roomId, id);
+  });
+
+  vcPeer.on('call', (call) => {
+    console.log('Incoming call from:', call.peer);
+    call.answer(vcLocalStream);
+    handleIncomingCall(call);
+  });
+
+  vcPeer.on('error', (err) => {
+    console.error('PeerJS error:', err);
+    if (err.type === 'peer-unavailable') {
+      console.warn('Peer unavailable:', err);
+    }
+  });
+
+  vcPeer.on('disconnected', () => {
+    console.log('PeerJS disconnected');
+    if (vcActiveRoomId) {
+      vcPeer.reconnect();
+    }
+  });
+
+  subscribeToVCChannel(roomId);
+
+  const localParticipant = {
+    peerId: currentUser.id,
+    username: currentUsername,
+    isMuted: vcLocalState.isMuted,
+    isCameraOn: true,
+    isScreenSharing: false,
+    isSpeaking: false
+  };
+  vcParticipants.set(currentUser.id, localParticipant);
+  updateGridParticipantLayout(Array.from(vcParticipants.values()));
+}
+
+function broadcastVCPresence(roomId, peerId) {
+  if (vcRealtimeChannel) {
+    vcRealtimeChannel.unsubscribe();
+  }
+
+  vcRealtimeChannel = supabase.channel(`vc_room_${roomId}`, {
+    config: { broadcast: { self: false } }
+  });
+
+  vcRealtimeChannel
+    .on('broadcast', { event: 'vc-join' }, ({ payload }) => {
+      handleVCJoinEvent(payload);
+    })
+    .on('broadcast', { event: 'vc-leave' }, ({ payload }) => {
+      handleVCLeaveEvent(payload);
+    })
+    .on('broadcast', { event: 'vc-state' }, ({ payload }) => {
+      handleVCStateEvent(payload);
+    })
+    .subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        vcRealtimeChannel.send({
+          type: 'broadcast',
+          event: 'vc-join',
+          payload: {
+            peerId: peerId,
+            userId: currentUser.id,
+            username: currentUsername,
+            timestamp: Date.now()
+          }
+        });
+      }
+    });
+}
+
+function handleVCJoinEvent(payload) {
+  const { peerId, username } = payload;
+  
+  if (!peerId || peerId === currentUser?.id) return;
+
+  if (!vcParticipants.has(peerId)) {
+    vcParticipants.set(peerId, {
+      peerId: peerId,
+      username: username || 'User',
+      isMuted: false,
+      isCameraOn: true,
+      isScreenSharing: false,
+      isSpeaking: false
+    });
+    updateGridParticipantLayout(Array.from(vcParticipants.values()));
+  }
+
+  if (currentUser?.id < peerId) {
+    callPeer(peerId);
+  }
+}
+
+function handleVCLeaveEvent(payload) {
+  const { peerId } = payload;
+  if (!peerId || peerId === currentUser?.id) return;
+
+  vcParticipants.delete(peerId);
+  
+  const remoteStream = vcRemoteStreams.get(peerId);
+  if (remoteStream) {
+    remoteStream.getTracks().forEach(track => track.stop());
+    vcRemoteStreams.delete(peerId);
+  }
+
+  const call = vcCalls.get(peerId);
+  if (call) {
+    call.close();
+    vcCalls.delete(peerId);
+  }
+
+  updateGridParticipantLayout(Array.from(vcParticipants.values()));
+}
+
+function handleVCStateEvent(payload) {
+  const { peerId, state } = payload;
+  if (!peerId || peerId === currentUser?.id) return;
+
+  const participant = vcParticipants.get(peerId);
+  if (participant) {
+    Object.assign(participant, state);
+    vcParticipants.set(peerId, participant);
     updateGridParticipantLayout(Array.from(vcParticipants.values()));
   }
 }
 
-function leaveVoiceRoom() {
+function callPeer(peerId) {
+  if (!vcPeer || !vcLocalStream) return;
+  
+  if (vcCalls.has(peerId)) return;
+
+  console.log('Calling peer:', peerId);
+  const call = vcPeer.call(peerId, vcLocalStream);
+  
+  if (!call) return;
+
+  vcCalls.set(peerId, call);
+  handleIncomingCall(call);
+}
+
+function handleIncomingCall(call) {
+  call.on('stream', (remoteStream) => {
+    console.log('Received stream from:', call.peer);
+    vcRemoteStreams.set(call.peer, remoteStream);
+
+    if (!vcParticipants.has(call.peer)) {
+      vcParticipants.set(call.peer, {
+        peerId: call.peer,
+        username: 'User',
+        isMuted: false,
+        isCameraOn: true,
+        isScreenSharing: false,
+        isSpeaking: false
+      });
+    }
+
+    updateGridParticipantLayout(Array.from(vcParticipants.values()));
+  });
+
+  call.on('close', () => {
+    console.log('Call closed with:', call.peer);
+    vcCalls.delete(call.peer);
+    vcRemoteStreams.delete(call.peer);
+  });
+
+  call.on('error', (err) => {
+    console.error('Call error:', err);
+  });
+}
+
+function subscribeToVCChannel(roomId) {
+}
+
+async function leaveVoiceRoom() {
+  if (vcRealtimeChannel) {
+    vcRealtimeChannel.send({
+      type: 'broadcast',
+      event: 'vc-leave',
+      payload: {
+        peerId: currentUser?.id,
+        timestamp: Date.now()
+      }
+    });
+    vcRealtimeChannel.unsubscribe();
+    vcRealtimeChannel = null;
+  }
+
+  if (vcScreenStream) {
+    vcScreenStream.getTracks().forEach(track => track.stop());
+    vcScreenStream = null;
+  }
+
+  if (vcLocalStream) {
+    vcLocalStream.getTracks().forEach(track => track.stop());
+    vcLocalStream = null;
+  }
+
+  vcRemoteStreams.forEach((stream) => {
+    stream.getTracks().forEach(track => track.stop());
+  });
+  vcRemoteStreams.clear();
+
+  vcCalls.forEach((call) => {
+    call.close();
+  });
+  vcCalls.clear();
+
+  if (vcPeer) {
+    vcPeer.destroy();
+    vcPeer = null;
+  }
+
+  vcParticipants.clear();
   vcActiveRoomId = null;
+
+  vcLocalState = {
+    isMuted: false,
+    isCameraOn: true,
+    isScreenSharing: false,
+    isSpeaking: false
+  };
+
   const dock = document.getElementById('vc-dock-container');
   if (dock) {
     dock.style.display = 'none';
   }
-  vcParticipants.clear();
+
+  const grid = document.getElementById('vc-participant-grid');
+  if (grid) {
+    grid.innerHTML = '';
+  }
+
+  const micBtn = document.getElementById('vc-mic-btn');
+  const camBtn = document.getElementById('vc-camera-btn');
+  if (micBtn) {
+    const micImg = micBtn.querySelector('img');
+    if (micImg) micImg.src = '../assets/chat-vc-mic-unmuted.svg';
+  }
+  if (camBtn) {
+    const camImg = camBtn.querySelector('img');
+    if (camImg) camImg.src = '../assets/chat-vc-camera-disabled.svg';
+  }
+}
+
+async function toggleMic() {
+  if (!vcLocalStream) return;
+  const audioTrack = vcLocalStream.getAudioTracks()[0];
+  if (!audioTrack) return;
+
+  audioTrack.enabled = !audioTrack.enabled;
+  const newMutedState = !audioTrack.enabled;
+
+  setParticipantMediaState(currentUser.id, { isMuted: newMutedState });
+
+  if (vcRealtimeChannel) {
+    vcRealtimeChannel.send({
+      type: 'broadcast',
+      event: 'vc-state',
+      payload: {
+        peerId: currentUser.id,
+        state: { isMuted: newMutedState }
+      }
+    });
+  }
+}
+
+async function toggleCamera() {
+  if (!vcLocalStream) return;
+  const videoTrack = vcLocalStream.getVideoTracks()[0];
+  if (!videoTrack) return;
+
+  videoTrack.enabled = !videoTrack.enabled;
+  const newCameraState = videoTrack.enabled;
+
+  setParticipantMediaState(currentUser.id, { isCameraOn: newCameraState });
+
+  if (vcRealtimeChannel) {
+    vcRealtimeChannel.send({
+      type: 'broadcast',
+      event: 'vc-state',
+      payload: {
+        peerId: currentUser.id,
+        state: { isCameraOn: newCameraState }
+      }
+    });
+  }
+}
+
+async function toggleScreenShare() {
+  if (!currentUser) return;
+
+  if (vcLocalState.isScreenSharing) {
+    if (vcScreenStream) {
+      vcScreenStream.getTracks().forEach(t => t.stop());
+      vcScreenStream = null;
+    }
+
+    const cameraTrack = vcLocalStream?.getVideoTracks()[0];
+    if (cameraTrack) {
+      cameraTrack.enabled = true;
+
+      vcCalls.forEach((call) => {
+        if (call.peerConnection) {
+          const sender = call.peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
+          if (sender) {
+            sender.replaceTrack(cameraTrack).catch(e => console.error('Replace track error:', e));
+          }
+        }
+      });
+    }
+
+    setParticipantMediaState(currentUser.id, { isScreenSharing: false, isCameraOn: true });
+
+    if (vcRealtimeChannel) {
+      vcRealtimeChannel.send({
+        type: 'broadcast',
+        event: 'vc-state',
+        payload: {
+          peerId: currentUser.id,
+          state: { isScreenSharing: false, isCameraOn: true }
+        }
+      });
+    }
+  } else {
+    try {
+      vcScreenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+      const screenTrack = vcScreenStream.getVideoTracks()[0];
+
+      const cameraTrack = vcLocalStream?.getVideoTracks()[0];
+      if (cameraTrack) {
+        cameraTrack.enabled = false;
+      }
+
+      vcCalls.forEach((call) => {
+        if (call.peerConnection) {
+          const sender = call.peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
+          if (sender) {
+            sender.replaceTrack(screenTrack).catch(e => console.error('Replace track error:', e));
+          }
+        }
+      });
+
+      screenTrack.onended = () => {
+        if (vcLocalState.isScreenSharing) {
+          toggleScreenShare();
+        }
+      };
+
+      setParticipantMediaState(currentUser.id, { isScreenSharing: true, isCameraOn: false });
+
+      if (vcRealtimeChannel) {
+        vcRealtimeChannel.send({
+          type: 'broadcast',
+          event: 'vc-state',
+          payload: {
+            peerId: currentUser.id,
+            state: { isScreenSharing: true, isCameraOn: false }
+          }
+        });
+      }
+    } catch (err) {
+      console.error('Screenshare failed:', err);
+      if (err.name !== 'AbortError') {
+        showLocalSystemMessage('Screen sharing failed: ' + err.message, true);
+      }
+    }
+  }
 }
 
 /* ── VC CONTROL BUTTON HANDLERS ───────────────────────────── */
@@ -1452,30 +1858,19 @@ document.addEventListener('DOMContentLoaded', () => {
   const leaveBtn = document.getElementById('vc-leave-btn');
 
   if (micBtn) {
-    micBtn.onclick = () => {
-      if (!currentUser) return;
-      setParticipantMediaState(currentUser.id, { isMuted: !vcLocalState.isMuted });
-    };
+    micBtn.onclick = () => toggleMic();
   }
 
   if (camBtn) {
-    camBtn.onclick = () => {
-      if (!currentUser) return;
-      setParticipantMediaState(currentUser.id, { isCameraOn: !vcLocalState.isCameraOn });
-    };
+    camBtn.onclick = () => toggleCamera();
   }
 
   if (screenshareBtn) {
-    screenshareBtn.onclick = () => {
-      if (!currentUser) return;
-      setParticipantMediaState(currentUser.id, { isScreenSharing: !vcLocalState.isScreenSharing });
-    };
+    screenshareBtn.onclick = () => toggleScreenShare();
   }
 
   if (leaveBtn) {
-    leaveBtn.onclick = () => {
-      leaveVoiceRoom();
-    };
+    leaveBtn.onclick = () => leaveVoiceRoom();
   }
 });
 
@@ -1494,12 +1889,12 @@ async function startChat(user) {
   scroller.addEventListener("scroll", handleScrollPagination);
   setupAutocompleteEngine(input);
   
-  // Polling fallback to ensure bans/mutes are caught even if Realtime is disabled on the users table
   setInterval(async () => {
     if (!currentUser) return;
     const { data: profile, error } = await supabase.from("users").select("bannedUntil, mutedUntil, role").eq("id", currentUser.id).single();
     if (profile && !error) {
       const oldBannedUntil = currentUserBannedUntil;
+      const oldMutedUntil = currentUserMutedUntil;
       currentUserBannedUntil = profile.bannedUntil || 0;
       currentUserMutedUntil = profile.mutedUntil || 0;
       currentUserRole = profile.role || "user";
@@ -1526,6 +1921,8 @@ async function startChat(user) {
           }
         }
         renderMessages();
+      } else if ((!oldMutedUntil || oldMutedUntil <= Date.now()) && currentUserMutedUntil && Date.now() < currentUserMutedUntil) {
+        startCooldownTimer(currentUserMutedUntil);
       }
     }
   }, 3000);
@@ -1622,23 +2019,30 @@ async function startChat(user) {
       const segments = textToSend.split(/\s+/);
       const commandKey = segments[0].toLowerCase();
       
-      // Extract target mentions or usernames
       const mentions = textToSend.match(/@[^\s]+/g) || [];
-      const targetUsernames = mentions.map(m => m.substring(1).replace(/[.,!?;:]+$/, '').toLowerCase()).filter(Boolean);
+      let targetUsernames = mentions.map(m => m.substring(1).replace(/[.,!?;:]+$/, '').toLowerCase()).filter(Boolean);
+      
+      let effectiveSegments = [...segments];
+      
+      if (targetUsernames.length === 0 && segments.length > 1) {
+        const firstArg = segments[1];
+        const isDuration = /^\d+(s|m|h|d|w|mo|y)$/i.test(firstArg);
+        if (!isDuration && firstArg.length > 0) {
+          targetUsernames.push(firstArg.replace(/[.,!?;:]+$/, '').toLowerCase());
+          effectiveSegments = [segments[0], '@' + firstArg, ...segments.slice(2)];
+        }
+      }
 
       const isAdminPlus = currentUserRole === "admin" || currentUserRole === "owner";
       const isOwnerOnly = currentUserRole === "owner";
 
-      // ── HELPER: Resolve target user from Cache OR Supabase Direct Query ──
       async function resolveTargetUser() {
         if (targetUsernames.length === 0) return null;
         const searchName = targetUsernames[0];
 
-        // 1. Try local cache
         let found = localUsersCache.find(u => u.username && u.username.toLowerCase() === searchName);
         if (found) return found;
 
-        // 2. Fallback to Supabase
         const { data } = await supabase
           .from("users")
           .select("id, username, role")
@@ -1648,7 +2052,6 @@ async function startChat(user) {
         return data || null;
       }
 
-      // Helper function to check role hierarchy
       function checkRoleHierarchy(target) {
         if (!target) return false;
         if (target.id === currentUser.id) {
@@ -1666,7 +2069,6 @@ async function startChat(user) {
         return true;
       }
 
-      // ── PUBLIC VOICE CHAT COMMAND ──
       if (commandKey === "/publicvc") {
         const roomId = "vc-pub-" + Math.random().toString(36).substring(2, 9);
         await supabase.from("vc_rooms").insert([{ room_id: roomId, created_by: currentUsername, is_public: true }]);
@@ -1682,10 +2084,17 @@ async function startChat(user) {
         return;
       }
 
-      // ── PRIVATE VOICE CHAT COMMAND ──
       if (commandKey === "/privatevc") {
         const mentionsPrivate = textToSend.match(/@[^\s]+/g) || [];
-        const targetUsernamesPrivate = mentionsPrivate.map(m => m.replace("@", "").replace(/[.,!?;:]+$/, '').toLowerCase()).filter(Boolean);
+        let targetUsernamesPrivate = mentionsPrivate.map(m => m.replace("@", "").replace(/[.,!?;:]+$/, '').toLowerCase()).filter(Boolean);
+        
+        if (targetUsernamesPrivate.length === 0) {
+          let i = 1;
+          while (i < segments.length && segments[i].length > 0) {
+            targetUsernamesPrivate.push(segments[i].replace(/[.,!?;:]+$/, '').toLowerCase());
+            i++;
+          }
+        }
 
         if (targetUsernamesPrivate.length === 0) {
           showLocalSystemMessage("Syntax: /privatevc @username1 @username2", true);
@@ -1715,12 +2124,11 @@ async function startChat(user) {
         return;
       }
 
-      // ── MODERATION: MUTE ──
       if (commandKey === "/mute" && isAdminPlus) {
         const targetUser = await resolveTargetUser();
-        const durationStr = segments[2];
+        const durationStr = effectiveSegments[2];
         const durationMs = parseDurationString(durationStr);
-        const reason = segments.slice(3).join(" ") || "No explicit reason logged.";
+        const reason = effectiveSegments.slice(3).join(" ") || "No explicit reason logged.";
 
         if (!targetUser || !durationMs) {
           showLocalSystemMessage("Syntax: /mute @username [time, e.g., 45s/30m/4h] [reason]", true);
@@ -1734,7 +2142,6 @@ async function startChat(user) {
         return;
       }
 
-      // ── MODERATION: UNMUTE ──
       if (commandKey === "/unmute" && isAdminPlus) {
         const targetUser = await resolveTargetUser();
         if (!targetUser) { showLocalSystemMessage("Syntax: /unmute @username", true); return; }
@@ -1744,12 +2151,11 @@ async function startChat(user) {
         return;
       }
 
-      // ── MODERATION: BAN ──
       if (commandKey === "/ban" && isAdminPlus) {
         const targetUser = await resolveTargetUser();
-        const durationStr = segments[2];
+        const durationStr = effectiveSegments[2];
         const durationMs = parseDurationString(durationStr);
-        const reason = segments.slice(3).join(" ") || "No explicit reason logged.";
+        const reason = effectiveSegments.slice(3).join(" ") || "No explicit reason logged.";
 
         if (!targetUser || !durationMs) {
           showLocalSystemMessage("Syntax: /ban @username [time, e.g., 10s/2h/15d] [reason]", true);
@@ -1765,7 +2171,6 @@ async function startChat(user) {
         return;
       }
 
-      // ── MODERATION: UNBAN ──
       if (commandKey === "/unban" && isAdminPlus) {
         const targetUser = await resolveTargetUser();
         if (!targetUser) { showLocalSystemMessage("Syntax: /unban @username", true); return; }
@@ -1775,14 +2180,13 @@ async function startChat(user) {
         return;
       }
 
-      // ── MODERATION: PERMABAN ──
       if (commandKey === "/permaban" && isAdminPlus) {
         const targetUser = await resolveTargetUser();
         if (!targetUser) { showLocalSystemMessage("Syntax: /permaban @username [reason]", true); return; }
         if (!checkRoleHierarchy(targetUser)) return;
 
-        const reason = segments.slice(2).join(" ") || "No explicit reason logged.";
-        const permaTimestamp = Date.now() + (100 * 365 * 24 * 60 * 60 * 1000); // 100 years
+        const reason = effectiveSegments.slice(2).join(" ") || "No explicit reason logged.";
+        const permaTimestamp = Date.now() + (100 * 365 * 24 * 60 * 60 * 1000);
 
         const { error } = await supabase.from("users").update({ "bannedUntil": permaTimestamp, "banReason": reason }).eq("id", targetUser.id);
         if (error) { showLocalSystemMessage(`Failed to permaban user: ${error.message}`, true); return; }
@@ -1790,13 +2194,12 @@ async function startChat(user) {
         return;
       }
 
-      // ── MODERATION: KICK (2 minute temporary ban) ──
       if (commandKey === "/kick" && isAdminPlus) {
         const targetUser = await resolveTargetUser();
         if (!targetUser) { showLocalSystemMessage("Syntax: /kick @username [reason]", true); return; }
         if (!checkRoleHierarchy(targetUser)) return;
 
-        const reason = segments.slice(2).join(" ") || "No explicit reason logged.";
+        const reason = effectiveSegments.slice(2).join(" ") || "No explicit reason logged.";
         const kickTimestamp = Date.now() + (2 * 60 * 1000);
 
         const { error } = await supabase.from("users").update({ "bannedUntil": kickTimestamp, "banReason": reason }).eq("id", targetUser.id);
@@ -1805,7 +2208,6 @@ async function startChat(user) {
         return;
       }
 
-      // ── OWNER COMMANDS ──
       if (commandKey === "/admin" && isOwnerOnly) {
         const targetUser = await resolveTargetUser();
         if (!targetUser) { showLocalSystemMessage("Syntax: /admin @username", true); return; }
@@ -1844,7 +2246,7 @@ async function startChat(user) {
 
       if (commandKey === "/subscription" && isOwnerOnly) {
         const targetUser = await resolveTargetUser();
-        const chosenRank = segments[2]?.toLowerCase();
+        const chosenRank = effectiveSegments[2]?.toLowerCase();
         if (!targetUser || (chosenRank !== "basic" && chosenRank !== "premium")) { showLocalSystemMessage("Syntax: /subscription @username basic/premium", true); return; }
         const { error } = await supabase.from("users").update({ rank: chosenRank }).eq("id", targetUser.id);
         if (error) { showLocalSystemMessage(`Failed to update subscription: ${error.message}`, true); return; }
@@ -1894,8 +2296,8 @@ async function startChat(user) {
 
       if (commandKey === "/warn" && isAdminPlus) {
         const targetUser = await resolveTargetUser();
-        if (!targetUser || !segments.slice(2).join(" ")) { showLocalSystemMessage("Syntax: /warn @username [reason]", true); return; }
-        const payloadText = segments.slice(2).join(" ");
+        if (!targetUser || !effectiveSegments.slice(2).join(" ")) { showLocalSystemMessage("Syntax: /warn @username [reason]", true); return; }
+        const payloadText = effectiveSegments.slice(2).join(" ");
         await supabase.from("messages").insert([{
           text: `WARNING LOG: @${targetUser.username} has been formally warned. Reason: ${payloadText}`,
           username: "Server",
@@ -2551,7 +2953,7 @@ function setupAutocompleteEngine(input) {
         items[activeSuggestionIndex].scrollIntoView({ block: "nearest" });
       } else if (e.key === "Enter" || e.key === "Tab") {
         e.preventDefault();
-        items[activeSuggestionIndex].click();
+        items[activeSuggestionIndex].dispatchEvent(new Event("pointerdown"));
       } else if (e.key === "Escape") {
         closePopover();
       }
@@ -2570,6 +2972,12 @@ function setupAutocompleteEngine(input) {
       closePopover();
     }
   });
+
+  document.addEventListener("pointerdown", (e) => {
+    if (e.target !== input && e.target !== popover && !popover.contains(e.target)) {
+      closePopover();
+    }
+  });
 }
 
 function showCommands(cmds) {
@@ -2582,7 +2990,8 @@ function showCommands(cmds) {
     div.className = "suggestion-item" + (idx === 0 ? " selected" : "");
     div.innerHTML = `<span class="item-icon">/</span> <strong>${c.name}</strong> &nbsp; <span style="color:var(--text-muted); font-size:0.8rem;">${c.desc}</span>`;
 
-    div.onclick = (e) => {
+    div.onpointerdown = (e) => {
+      e.preventDefault();
       e.stopPropagation();
       const input = document.getElementById("message-input");
       input.value = c.name + " ";
@@ -2622,7 +3031,8 @@ function showMentions(users, type) {
       }
     }
 
-    div.onclick = (e) => {
+    div.onpointerdown = (e) => {
+      e.preventDefault();
       e.stopPropagation();
       const input = document.getElementById("message-input");
       const currentVal = input.value;
@@ -2723,7 +3133,6 @@ function getGradient(username) {
 async function loadAvatarImageForUser(userId) {
   if (!userId) return null;
 
-  // Check if the user has an entry in our loaded avatar storage index
   const entry = avatarIndexByUserId.get(userId);
   const avatarFileName = entry ? entry.fileName : `${userId}.jpg`;
 
@@ -2758,7 +3167,6 @@ async function decorateAvatarElement(element, userId, username, fallbackText) {
   element.style.background = "var(--card)";
   element.innerHTML = "";
 
-  // Skip network fetch completely if the user hasn't uploaded an avatar
   if (!userId || !avatarIndexByUserId.has(userId)) {
     element.style.background = `linear-gradient(135deg, ${gradient})`;
     element.textContent = fallbackText;
@@ -2780,7 +3188,6 @@ function escapeHtml(text) {
   return text.replace(/[&<>"']/g, m => map[m]);
 }
 
-// Expose VC functions globally for external access
 window.joinVoiceRoom = joinVoiceRoom;
 window.leaveVoiceRoom = leaveVoiceRoom;
 window.setParticipantMediaState = setParticipantMediaState;
