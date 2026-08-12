@@ -652,6 +652,8 @@
       display: none;
       padding: 6px 0;
       -webkit-overflow-scrolling: touch;
+      touch-action: pan-y;
+      overscroll-behavior: contain;
     }
 
     .suggestion-item {
@@ -754,6 +756,9 @@
         <button class="vc-control-btn" id="vc-camera-btn" title="Toggle Camera">
           <img src="../assets/chat-vc-camera-disabled.svg" alt="Camera">
         </button>
+        <button class="vc-control-btn" id="vc-flip-btn" title="Flip Camera">
+          <img src="../assets/chat-flipcamera.svg" alt="Flip Camera">
+        </button>
         <button class="vc-control-btn" id="vc-screenshare-btn" title="Share Screen">
           <img src="../assets/chat-vc-screenshare.svg" alt="Screen Share">
         </button>
@@ -807,12 +812,10 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 const EX_COMMANDS = [
   { name: "/admin", desc: "Promote a user to Admin {/admin @user}" },
   { name: "/ban", desc: "Ban a user for a duration {/ban @user time reason}" },
-  { name: "/clear", desc: "Clear local chat history {/clear}" },
   { name: "/deleteall", desc: "Wipe all chat messages and whispers {/deleteall}" },
   { name: "/deleteuser", desc: "Delete a user from the database {/deleteuser @user}" },
-  { name: "/help", desc: "Show available commands {/help}" },
   { name: "/kick", desc: "Kick a user from chat for 2 minutes {/kick @user reason}" },
-  { name: "/mute", desc: "Mute a user for a duration {/mute @user time reason}" },
+  { name: "/mute", desc: "Mute a user for a duration {/mute @user time}" },
   { name: "/omoggle", desc: "Send an Omoggle video match challenge {/omoggle @user}" },
   { name: "/owner", desc: "Promote an Admin to Owner {/owner @user}" },
   { name: "/permaban", desc: "Permanently ban a user {/permaban @user reason}" },
@@ -965,6 +968,7 @@ supabase.auth.onAuthStateChange(async (event, session) => {
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'users', filter: `id=eq.${user.id}` }, payload => {
       const data = payload.new;
       const oldBannedUntil = currentUserBannedUntil;
+      const oldMutedUntil = currentUserMutedUntil;
       
       currentUsername = data.username || currentUsername;
       currentUserRole = data.role || "user";
@@ -980,18 +984,13 @@ supabase.auth.onAuthStateChange(async (event, session) => {
 
       if (currentUserBannedUntil && Date.now() < currentUserBannedUntil) {
         handleBannedUserDisplay();
-      } else if (oldBannedUntil && oldBannedUntil > Date.now() && (!currentUserBannedUntil || currentUserBannedUntil <= Date.now())) {
-        const inputRow = document.querySelector(".input-row");
-        const inputField = document.getElementById("message-input");
-        const sendBtn = document.getElementById("send-message-btn");
-        
-        if (inputRow) inputRow.style.display = "flex";
-        if (inputField) inputField.disabled = false;
-        if (sendBtn) sendBtn.disabled = false;
-
+      } else {
+        // Handle Mute/Unmute logic independently of bans
         if (currentUserMutedUntil && Date.now() < currentUserMutedUntil) {
-          startCooldownTimer(currentUserMutedUntil);
-        } else if (activeMuteInterval) {
+          if (oldMutedUntil !== currentUserMutedUntil) {
+             startCooldownTimer(currentUserMutedUntil);
+          }
+        } else if (activeMuteInterval && (!currentUserMutedUntil || currentUserMutedUntil <= Date.now())) {
           clearInterval(activeMuteInterval);
           activeMuteInterval = null;
           const btn = document.getElementById("send-message-btn");
@@ -1001,6 +1000,16 @@ supabase.auth.onAuthStateChange(async (event, session) => {
             textContainer.style.visibility = "hidden";
             textContainer.textContent = "";
           }
+        }
+        
+        if (oldBannedUntil && oldBannedUntil > Date.now() && (!currentUserBannedUntil || currentUserBannedUntil <= Date.now())) {
+          const inputRow = document.querySelector(".input-row");
+          const inputField = document.getElementById("message-input");
+          const sendBtn = document.getElementById("send-message-btn");
+          
+          if (inputRow) inputRow.style.display = "flex";
+          if (inputField) inputField.disabled = false;
+          if (sendBtn) sendBtn.disabled = false;
         }
         renderMessages();
       }
@@ -1163,13 +1172,7 @@ async function ensureNotificationPermission() {
 }
 
 const messageInput = document.getElementById("message-input");
-
-if (messageInput) {
-  messageInput.addEventListener("blur", () => {
-    window.scrollTo(0, 0);
-    document.body.scrollTop = 0;
-  });
-}
+// Removed blur listener that was causing iPad shifting issues
 
 function getMentionTargets(text) {
   if (!text) return [];
@@ -1668,6 +1671,17 @@ async function leaveVoiceRoom() {
     vcRealtimeChannel = null;
   }
 
+  // Auto-delete room and update invite message if I am the last one leaving
+  if (vcActiveRoomId && vcParticipants.size <= 1) {
+    try {
+      await supabase.from("vc_rooms").delete().eq("room_id", vcActiveRoomId);
+      await supabase.from("messages").update({ text: "This call has ended." }).eq("room_id", vcActiveRoomId);
+      await supabase.from("whispers").update({ text: "This call has ended." }).eq("room_id", vcActiveRoomId);
+    } catch (e) {
+      console.error("Failed to cleanup VC room", e);
+    }
+  }
+
   if (vcScreenStream) {
     vcScreenStream.getTracks().forEach(track => track.stop());
     vcScreenStream = null;
@@ -1769,8 +1783,53 @@ async function toggleCamera() {
   }
 }
 
+async function flipCamera() {
+  if (!vcLocalStream) return;
+  const videoTrack = vcLocalStream.getVideoTracks()[0];
+  if (!videoTrack) return;
+
+  const currentFacingMode = videoTrack.getSettings().facingMode;
+  const newFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
+
+  try {
+    const newStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { exact: newFacingMode } },
+      audio: true
+    });
+    
+    const newVideoTrack = newStream.getVideoTracks()[0];
+    
+    vcCalls.forEach((call) => {
+      if (call.peerConnection) {
+        const sender = call.peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
+        if (sender) {
+          sender.replaceTrack(newVideoTrack).catch(e => console.error('Replace track error:', e));
+        }
+      }
+    });
+
+    videoTrack.stop();
+    vcLocalStream.removeTrack(videoTrack);
+    vcLocalStream.addTrack(newVideoTrack);
+    
+    const localTile = document.querySelector(`[data-peer-id="${currentUser.id}"] video`);
+    if (localTile) localTile.srcObject = vcLocalStream;
+
+  } catch (err) {
+    console.error('Flip camera failed:', err);
+    showLocalSystemMessage('Could not flip camera. Make sure both cameras are available.', true);
+  }
+}
+
 async function toggleScreenShare() {
   if (!currentUser) return;
+
+  // Detect iOS/iPadOS where getDisplayMedia is NOT supported
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (isIOS) {
+    showLocalSystemMessage("Screen sharing is not supported on iPad/iOS devices due to browser limitations.", true);
+    return;
+  }
 
   if (vcLocalState.isScreenSharing) {
     if (vcScreenStream) {
@@ -1854,24 +1913,15 @@ async function toggleScreenShare() {
 document.addEventListener('DOMContentLoaded', () => {
   const micBtn = document.getElementById('vc-mic-btn');
   const camBtn = document.getElementById('vc-camera-btn');
+  const flipBtn = document.getElementById('vc-flip-btn');
   const screenshareBtn = document.getElementById('vc-screenshare-btn');
   const leaveBtn = document.getElementById('vc-leave-btn');
 
-  if (micBtn) {
-    micBtn.onclick = () => toggleMic();
-  }
-
-  if (camBtn) {
-    camBtn.onclick = () => toggleCamera();
-  }
-
-  if (screenshareBtn) {
-    screenshareBtn.onclick = () => toggleScreenShare();
-  }
-
-  if (leaveBtn) {
-    leaveBtn.onclick = () => leaveVoiceRoom();
-  }
+  if (micBtn) micBtn.onclick = () => toggleMic();
+  if (camBtn) camBtn.onclick = () => toggleCamera();
+  if (flipBtn) flipBtn.onclick = () => flipCamera();
+  if (screenshareBtn) screenshareBtn.onclick = () => toggleScreenShare();
+  if (leaveBtn) leaveBtn.onclick = () => leaveVoiceRoom();
 });
 
 async function startChat(user) {
@@ -2005,14 +2055,17 @@ async function startChat(user) {
       return;
     }
 
+    const isAdminPlus = currentUserRole === "admin" || currentUserRole === "owner";
     const now = Date.now();
-    if (now - lastMessageTime < MESSAGE_COOLDOWN) return;
+    if (!isAdminPlus && now - lastMessageTime < MESSAGE_COOLDOWN) return;
 
     input.value = "";
     lastMessageTime = now;
     clearEphemeralSystemMessages();
 
-    startCooldownTimer();
+    if (!isAdminPlus) {
+      startCooldownTimer();
+    }
     closePopover();
 
     if (textToSend.startsWith("/")) {
@@ -2033,7 +2086,6 @@ async function startChat(user) {
         }
       }
 
-      const isAdminPlus = currentUserRole === "admin" || currentUserRole === "owner";
       const isOwnerOnly = currentUserRole === "owner";
 
       async function resolveTargetUser() {
@@ -2104,6 +2156,12 @@ async function startChat(user) {
         const roomId = "vc-priv-" + Math.random().toString(36).substring(2, 9);
         const invitedList = [currentUsername, ...targetUsernamesPrivate].join(", ");
 
+        const participantIds = [currentUser.id];
+        for (const uname of targetUsernamesPrivate) {
+            const u = localUsersCache.find(x => x.username.toLowerCase() === uname);
+            if (u) participantIds.push(u.id);
+        }
+
         await supabase.from("vc_rooms").insert([{
           room_id: roomId,
           created_by: currentUsername,
@@ -2111,13 +2169,14 @@ async function startChat(user) {
           allowed_users: [currentUsername.toLowerCase(), ...targetUsernamesPrivate]
         }]);
 
-        await supabase.from("messages").insert([{
+        await supabase.from("whispers").insert([{
           text: `@${currentUsername} started a private voice chat including: ${invitedList}`,
           username: "Server",
-          userId: null,
-          role: "system",
+          senderId: currentUser.id,
+          participants: participantIds,
           type: "vc_invite",
-          room_id: roomId
+          room_id: roomId,
+          role: "system"
         }]);
 
         joinVoiceRoom(roomId);
@@ -2128,17 +2187,16 @@ async function startChat(user) {
         const targetUser = await resolveTargetUser();
         const durationStr = effectiveSegments[2];
         const durationMs = parseDurationString(durationStr);
-        const reason = effectiveSegments.slice(3).join(" ") || "No explicit reason logged.";
 
         if (!targetUser || !durationMs) {
-          showLocalSystemMessage("Syntax: /mute @username [time, e.g., 45s/30m/4h] [reason]", true);
+          showLocalSystemMessage("Syntax: /mute @username [time, e.g., 45s/30m/4h]", true);
           return;
         }
         if (!checkRoleHierarchy(targetUser)) return;
 
         const { error } = await supabase.from("users").update({ "mutedUntil": Date.now() + durationMs }).eq("id", targetUser.id);
         if (error) { showLocalSystemMessage(`Failed to mute user: ${error.message}`, true); return; }
-        showLocalSystemMessage(`Muted user @${targetUser.username} for ${durationStr}. Reason: ${reason}`, false);
+        showLocalSystemMessage(`Muted user @${targetUser.username} for ${durationStr}.`, false);
         return;
       }
 
@@ -2272,38 +2330,37 @@ async function startChat(user) {
         return;
       }
 
-      if (commandKey === "/clear") {
-        dbPublicMessages = [];
-        dbPrivateMessages = [];
-        dbHistoricalMessages = [];
-        localPendingQueue = [];
-        clearEphemeralSystemMessages();
-        renderMessages();
-        showLocalSystemMessage("Local chat view cleared.");
-        return;
-      }
-
-      if (commandKey === "/help") {
-        let helpString = "<span style='text-transform: uppercase; font-size: 0.8rem; color: #6c63ff; font-weight:700;'>Available Commands Matrix:</span><br>";
-        EX_COMMANDS.forEach(c => {
-          if (["/mute", "/unmute", "/ban", "/unban", "/permaban", "/deleteall", "/kick", "/warn"].includes(c.name) && !isAdminPlus) return;
-          if (["/admin", "/unadmin", "/owner", "/unowner", "/subscription", "/deleteuser"].includes(c.name) && !isOwnerOnly) return;
-          helpString += `• <strong>${c.name}</strong> - ${c.desc}<br>`;
-        });
-        showLocalSystemMessage(helpString, false);
-        return;
-      }
-
       if (commandKey === "/warn" && isAdminPlus) {
         const targetUser = await resolveTargetUser();
-        if (!targetUser || !effectiveSegments.slice(2).join(" ")) { showLocalSystemMessage("Syntax: /warn @username [reason]", true); return; }
-        const payloadText = effectiveSegments.slice(2).join(" ");
-        await supabase.from("messages").insert([{
-          text: `WARNING LOG: @${targetUser.username} has been formally warned. Reason: ${payloadText}`,
-          username: "Server",
-          userId: null,
-          role: "system"
+        const reason = effectiveSegments.slice(2).join(" ");
+        if (!targetUser || !reason) { showLocalSystemMessage("Syntax: /warn @username [reason]", true); return; }
+        
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayTimestamp = today.toISOString();
+        
+        let warnCount = 1;
+        try {
+            const { data: warnsToday } = await supabase
+                .from("whispers")
+                .select("id")
+                .contains("participants", [targetUser.id])
+                .gte("timestamp", todayTimestamp)
+                .ilike("text", "Warning %");
+            if (warnsToday) warnCount = warnsToday.length + 1;
+        } catch(e) { console.warn("Could not fetch warn count", e); }
+
+        const warnText = `Warning ${warnCount}: ${reason}`;
+        
+        await supabase.from("whispers").insert([{
+            text: warnText,
+            username: "Server",
+            senderId: currentUser.id,
+            participants: [currentUser.id, targetUser.id],
+            role: "system"
         }]);
+        
+        showLocalSystemMessage(`Issued Warning ${warnCount} to @${targetUser.username}.`, false);
         return;
       }
 
@@ -2509,7 +2566,7 @@ async function listenForNewMessages(user) {
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'whispers' }, payload => {
       const newWhisper = payload.new;
       if (newWhisper.participants && newWhisper.participants.includes(user.id)) {
-        const incomingMessage = { ...newWhisper, isWhisper: true, isSystemMessage: newWhisper.isOmoggleInvite === true };
+        const incomingMessage = { ...newWhisper, isWhisper: true, isSystemMessage: newWhisper.isOmoggleInvite === true || newWhisper.type === 'vc_invite' || newWhisper.role === 'system' };
         maybeNotifyForMention(incomingMessage);
         dbPrivateMessages.push(incomingMessage);
         renderMessages(true);
@@ -2520,7 +2577,7 @@ async function listenForNewMessages(user) {
       if (updatedWhisper.participants && updatedWhisper.participants.includes(user.id)) {
         const idx = dbPrivateMessages.findIndex(m => m.id === updatedWhisper.id);
         if (idx !== -1) {
-          dbPrivateMessages[idx] = { ...updatedWhisper, isWhisper: true, isSystemMessage: updatedWhisper.isOmoggleInvite === true };
+          dbPrivateMessages[idx] = { ...updatedWhisper, isWhisper: true, isSystemMessage: updatedWhisper.isOmoggleInvite === true || updatedWhisper.type === 'vc_invite' || updatedWhisper.role === 'system' };
 
           if (updatedWhisper.isOmoggleInvite && updatedWhisper.inviteStatus === "accepted") {
             const sessionRedirectToken = `omoggle_redirected_${updatedWhisper.id}`;
@@ -2693,7 +2750,7 @@ function displayMessage(scroller, msgData) {
   } else if (msgData.type === "vc_invite" || msgData.isSystemMessage) {
     let vcButtonsHTML = "";
     
-    if (msgData.type === "vc_invite" && msgData.room_id) {
+    if (msgData.type === "vc_invite" && msgData.room_id && msgData.text !== "This call has ended.") {
       vcButtonsHTML = `
         <div style="display: flex; gap: 8px; margin-top: 8px;">
           <button class="btn-duel-accept" onclick="window.joinVoiceRoom('${msgData.room_id}')">Join Voice</button>
@@ -2881,7 +2938,7 @@ function setupAutocompleteEngine(input) {
     }
 
     const baseCommandContext = words[0].toLowerCase();
-    const targetAutocompleteCommands = ["/w", "/omoggle", "/privatevc", "/mute", "/unmute", "/admin", "/unadmin", "/owner", "/unowner", "/subscription", "/deleteuser", "/ban", "/unban", "/permaban", "/kick", "/warn"];
+    const targetAutocompleteCommands = ["/w", "/whisper", "/omoggle", "/privatevc", "/mute", "/unmute", "/admin", "/unadmin", "/owner", "/unowner", "/subscription", "/deleteuser", "/ban", "/unban", "/permaban", "/kick", "/warn"];
 
     if (targetAutocompleteCommands.includes(baseCommandContext)) {
       let isTargetingPhase = true;
