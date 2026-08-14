@@ -42,8 +42,8 @@
     html, body {
       width: 100%;
       height: 100%;
-      overflow: auto;
-      -webkit-overflow-scrolling: touch;
+      overflow: hidden;
+      touch-action: manipulation;
     }
 
     body {
@@ -1208,7 +1208,11 @@ async function ensureNotificationPermission() {
 }
 
 const messageInput = document.getElementById("message-input");
-// Removed blur listener that was causing iPad shifting issues
+if (messageInput) {
+  messageInput.addEventListener("blur", () => {
+    window.scrollTo(0, 0);
+  });
+}
 
 function getMentionTargets(text) {
   if (!text) return [];
