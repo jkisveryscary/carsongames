@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Dashboard | RapidIdentity</title>
   <script src="../assets/theme-loader.js"></script>
   <script src="peerjs.min.js"></script>
@@ -12,6 +12,7 @@
   <style>
     /* ── THEME CONFIGURATION ──────────────────────────────── */
     :root {
+      --vh: 1vh;
       --bg: #06060c;
       --surface: #0c0d19;
       --card: #121426;
@@ -40,8 +41,9 @@
 
     html, body {
       width: 100%;
-      height: 100dvh;
-      overflow: hidden;
+      height: 100%;
+      overflow: auto;
+      -webkit-overflow-scrolling: touch;
     }
 
     body {
@@ -111,13 +113,76 @@
       transition: width 0.3s var(--ease);
     }
 
-    nav a:hover, nav a.active {
+    nav a.active {
       color: var(--text);
       background: rgba(255, 255, 255, 0.04);
     }
 
-    nav a:hover::after {
-      width: 100%;
+    /* Fix 6: Prevent sticky hover states on touch devices */
+    @media (hover: hover) {
+      nav a:hover {
+        color: var(--text);
+        background: rgba(255, 255, 255, 0.04);
+      }
+      nav a:hover::after {
+        width: 100%;
+      }
+      .nav-auth-btn:hover {
+        transform: translateY(-2px) scale(1.08);
+        box-shadow: 0 8px 24px rgba(108, 99, 255, 0.5);
+        background: rgba(108, 99, 255, 0.95) !important;
+      }
+      .nav-auth-btn:hover::before {
+        left: 100%;
+      }
+      .btn-primary:hover {
+        transform: translateY(-3px) scale(1.05);
+        box-shadow: 0 8px 32px rgba(108, 99, 255, 0.5);
+      }
+      .btn-primary:hover::before {
+        left: 100%;
+      }
+      .vc-control-btn:hover {
+        background: rgba(255, 255, 255, 0.1);
+        border-color: var(--accent);
+      }
+      .vc-control-btn:hover img {
+        filter: brightness(1.2);
+      }
+      .vc-leave-btn:hover {
+        background: #dc2626 !important;
+        border-color: rgba(220, 38, 38, 0.5) !important;
+        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+      }
+      .action-control-btn:hover {
+        color: var(--text);
+        border-color: var(--text-muted);
+      }
+      .action-control-btn.btn-delete-msg:hover {
+        background: rgba(239, 68, 68, 0.15);
+        color: #ef4444;
+        border-color: rgba(239, 68, 68, 0.4);
+      }
+      .action-control-btn:hover .tray-icon-img {
+        opacity: 1;
+      }
+      .btn-upload-file:hover {
+        background: #35373c;
+        border-color: rgba(255, 255, 255, 0.25);
+      }
+      .btn-upload-file:hover svg {
+        color: #ffffff;
+      }
+      .suggestion-item:hover {
+        background: var(--card-hover);
+        color: #fff;
+      }
+      .btn-duel-accept:hover {
+        background: #059669;
+      }
+      .btn-duel-decline:hover {
+        background: #dc2626;
+      }
     }
 
     .nav-auth-btn {
@@ -144,16 +209,6 @@
       height: 100%;
       background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
       transition: left 0.5s ease;
-    }
-
-    .nav-auth-btn:hover {
-      transform: translateY(-2px) scale(1.08);
-      box-shadow: 0 8px 24px rgba(108, 99, 255, 0.5);
-      background: rgba(108, 99, 255, 0.95) !important;
-    }
-
-    .nav-auth-btn:hover::before {
-      left: 100%;
     }
 
     .btn-primary {
@@ -183,15 +238,6 @@
       height: 100%;
       background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
       transition: left 0.5s ease;
-    }
-
-    .btn-primary:hover {
-      transform: translateY(-3px) scale(1.05);
-      box-shadow: 0 8px 32px rgba(108, 99, 255, 0.5);
-    }
-
-    .btn-primary:hover::before {
-      left: 100%;
     }
 
     /* ── VOICE/VIDEO CHAT DOCK ────────────────────────────── */
@@ -271,11 +317,6 @@
       padding: 0;
     }
 
-    .vc-control-btn:hover {
-      background: rgba(255, 255, 255, 0.1);
-      border-color: var(--accent);
-    }
-
     .vc-control-btn img {
       width: 20px;
       height: 20px;
@@ -284,19 +325,9 @@
       transition: filter 0.2s var(--ease);
     }
 
-    .vc-control-btn:hover img {
-      filter: brightness(1.2);
-    }
-
     .vc-leave-btn {
       background: #ef4444 !important;
       border-color: rgba(239, 68, 68, 0.3) !important;
-    }
-
-    .vc-leave-btn:hover {
-      background: #dc2626 !important;
-      border-color: rgba(220, 38, 38, 0.5) !important;
-      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
     }
 
     .vc-leave-btn img {
@@ -309,7 +340,6 @@
       padding: 1rem 1.5rem;
       height: calc(100% - 64px);
       overflow-y: auto;
-      -webkit-overflow-scrolling: touch;
     }
 
     /* Layout: 1 Person */
@@ -474,7 +504,7 @@
       display: flex;
       justify-content: center;
       align-items: stretch;
-      height: calc(100dvh - 72px);
+      height: calc(var(--vh, 1vh) * 100 - 72px);
       width: 100vw;
       overflow: hidden;
       background: var(--bg);
@@ -528,7 +558,6 @@
     .msg-controls-tray { position: absolute; right: 10px; top: 12px; display: flex; gap: 8px; align-items: center; }
 
     .action-control-btn { background: var(--surface); border: 1px solid var(--border); color: var(--text-muted); cursor: pointer; width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; }
-    .action-control-btn:hover { color: var(--text); border-color: var(--text-muted); }
     .action-control-btn.btn-delete-msg:hover { background: rgba(239, 68, 68, 0.15); color: #ef4444; border-color: rgba(239, 68, 68, 0.4); }
 
     .tray-icon-img { width: 14px; height: 14px; object-fit: contain; pointer-events: none; opacity: 0.8; transition: opacity 0.2s var(--ease); }
@@ -542,11 +571,9 @@
     .duel-card-actions { display: flex; gap: 8px; }
 
     .btn-duel-accept { background: #10b981; color: white; border: none; padding: 6px 14px; border-radius: 6px; font-weight: 700; font-size: 0.8rem; cursor: pointer; transition: background 0.2s ease; }
-    .btn-duel-accept:hover { background: #059669; }
     .btn-duel-accept:disabled { background: #065f46; cursor: not-allowed; opacity: 0.6; }
     
     .btn-duel-decline { background: #ef4444; color: white; border: none; padding: 6px 14px; border-radius: 6px; font-weight: 700; font-size: 0.8rem; cursor: pointer; transition: background 0.2s ease; }
-    .btn-duel-decline:hover { background: #dc2626; }
     .btn-duel-decline:disabled { background: #991b1b; cursor: not-allowed; opacity: 0.6; }
 
     .input-container {
@@ -580,20 +607,11 @@
       transition: all 0.2s ease;
     }
 
-    .btn-upload-file:hover {
-      background: #35373c;
-      border-color: rgba(255, 255, 255, 0.25);
-    }
-
     .btn-upload-file svg {
       width: 16px;
       height: 16px;
       color: #b5bac1;
       transition: color 0.2s ease;
-    }
-
-    .btn-upload-file:hover svg {
-      color: #ffffff;
     }
 
     .input-container .input-field {
@@ -622,8 +640,7 @@
       font-weight: 600;
       margin-bottom: 0.5rem;
       padding-left: 1rem;
-      visibility: hidden;
-      height: 1.2rem;
+      display: none;
       animation: fadeIn 0.2s ease;
     }
 
@@ -652,7 +669,7 @@
       display: none;
       padding: 6px 0;
       -webkit-overflow-scrolling: touch;
-      touch-action: pan-y;
+      touch-action: auto;
       overscroll-behavior: contain;
     }
 
@@ -668,7 +685,7 @@
       touch-action: manipulation;
       user-select: none;
     }
-    .suggestion-item:hover, .suggestion-item.selected {
+    .suggestion-item.selected {
       background: var(--card-hover);
       color: #fff;
     }
@@ -793,7 +810,7 @@
                 <line x1="5" y1="12" x2="19" y2="12"></line>
               </svg>
             </button>
-            <input id="message-input" type="text" class="input-field" placeholder="Type a message or / for a command..." autocomplete="off">
+            <input id="message-input" type="text" class="input-field" placeholder="Type a message or / for a command..." autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="send">
           </div>
           <button id="send-message-btn" class="btn-primary send-btn">Send</button>
         </div>
@@ -808,6 +825,24 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const supabaseUrl = "https://hbynnertatvxpvtqctyg.supabase.co";
 const supabaseKey = "sb_publishable_WnnU16Mfj1rmRJcEStOzeQ_BExLbP2C";
 const supabase = createClient(supabaseUrl, supabaseKey);
+
+/* ── DYNAMIC VIEWPORT HEIGHT & iOS HIDING ─────────────── */
+function setVh() {
+  document.documentElement.style.setProperty('--vh', `${window.innerHeight * 0.01}px`);
+}
+setVh();
+window.addEventListener('resize', setVh);
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', () => {
+    document.documentElement.style.setProperty('--vh', `${window.visualViewport.height * 0.01}px`);
+  });
+}
+
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+if (isIOS) {
+  const ssBtn = document.getElementById('vc-screenshare-btn');
+  if (ssBtn) ssBtn.style.setProperty('display', 'none');
+}
 
 const EX_COMMANDS = [
   { name: "/admin", desc: "Promote a user to Admin {/admin @user}" },
@@ -879,7 +914,8 @@ let vcLocalState = {
   isMuted: false,
   isCameraOn: true,
   isScreenSharing: false,
-  isSpeaking: false
+  isSpeaking: false,
+  currentFacingMode: 'user'
 };
 let vcActiveRoomId = null;
 
@@ -997,7 +1033,7 @@ supabase.auth.onAuthStateChange(async (event, session) => {
           const textContainer = document.getElementById("cooldown-timer-text");
           if (btn) btn.disabled = false;
           if (textContainer) {
-            textContainer.style.visibility = "hidden";
+            textContainer.style.display = "none";
             textContainer.textContent = "";
           }
         }
@@ -1235,14 +1271,14 @@ function startCooldownTimer(forcedMuteTime = null) {
   if (forcedMuteTime && forcedMuteTime <= Date.now()) {
     if (btn) btn.disabled = false;
     if (textContainer) {
-      textContainer.style.visibility = "hidden";
+      textContainer.style.display = "none";
       textContainer.textContent = "";
     }
     return;
   }
 
   if (btn) btn.disabled = true;
-  if (textContainer) textContainer.style.visibility = "visible";
+  if (textContainer) textContainer.style.display = "block";
 
   const updateDisplay = () => {
     let remaining = 0;
@@ -1258,7 +1294,7 @@ function startCooldownTimer(forcedMuteTime = null) {
       activeMuteInterval = null;
       if (btn) btn.disabled = false;
       if (textContainer) {
-        textContainer.style.visibility = "hidden";
+        textContainer.style.display = "none";
         textContainer.textContent = "";
       }
     } else {
@@ -1341,6 +1377,8 @@ function updateGridParticipantLayout(participantsArray) {
     const videoEl = document.createElement('video');
     videoEl.autoplay = true;
     videoEl.playsInline = true;
+    videoEl.setAttribute('playsinline', ''); 
+    videoEl.setAttribute('webkit-playsinline', '');
     videoEl.muted = participant.peerId === currentUser?.id;
     
     if (!participant.isCameraOn && !participant.isScreenSharing) {
@@ -1714,7 +1752,8 @@ async function leaveVoiceRoom() {
     isMuted: false,
     isCameraOn: true,
     isScreenSharing: false,
-    isSpeaking: false
+    isSpeaking: false,
+    currentFacingMode: 'user'
   };
 
   const dock = document.getElementById('vc-dock-container');
@@ -1788,15 +1827,16 @@ async function flipCamera() {
   const videoTrack = vcLocalStream.getVideoTracks()[0];
   if (!videoTrack) return;
 
-  const currentFacingMode = videoTrack.getSettings().facingMode;
+  const currentFacingMode = vcLocalState.currentFacingMode || 'user';
   const newFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
 
   try {
     const newStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { exact: newFacingMode } },
+      video: { facingMode: newFacingMode },
       audio: true
     });
     
+    vcLocalState.currentFacingMode = newFacingMode;
     const newVideoTrack = newStream.getVideoTracks()[0];
     
     vcCalls.forEach((call) => {
@@ -1825,7 +1865,6 @@ async function toggleScreenShare() {
   if (!currentUser) return;
 
   // Detect iOS/iPadOS where getDisplayMedia is NOT supported
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   if (isIOS) {
     showLocalSystemMessage("Screen sharing is not supported on iPad/iOS devices due to browser limitations.", true);
     return;
@@ -1966,7 +2005,7 @@ async function startChat(user) {
           activeMuteInterval = null;
           const textContainer = document.getElementById("cooldown-timer-text");
           if (textContainer) {
-            textContainer.style.visibility = "hidden";
+            textContainer.style.display = "none";
             textContainer.textContent = "";
           }
         }
@@ -2692,7 +2731,7 @@ function displayMessage(scroller, msgData) {
       </div>
     `;
   } else if (isVideo) {
-    textContent = `<video controls src="${escapeHtml(rawText)}" style="max-width: 100%; max-height: 300px; border-radius: 8px; margin-top: 6px;"></video>`;
+    textContent = `<video controls playsinline webkit-playsinline src="${escapeHtml(rawText)}" style="max-width: 100%; max-height: 300px; border-radius: 8px; margin-top: 6px;"></video>`;
   } else if (isAudio) {
     textContent = `<audio controls src="${escapeHtml(rawText)}" style="margin-top: 6px; max-width: 100%;"></audio>`;
   } else if (rawText.startsWith("https://") && rawText.includes("/storage/v1/object/public/")) {
