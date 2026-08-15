@@ -7,7 +7,7 @@
   <script src="../assets/theme-loader.js"></script>
   <script src="peerjs.min.js"></script>
   <link rel="stylesheet" href="../style.css">
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@700&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@700;800&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap" rel="stylesheet">
 
   <style>
     /* ── THEME CONFIGURATION ──────────────────────────────── */
@@ -32,16 +32,18 @@
     }
 
     /* ── BASE RESET ───────────────────────────────────────── */
+    /* FIX 4: Removed font-family from universal selector so
+              ../style.css globals are not stripped/overridden. */
     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
-      font-family: var(--font);
     }
 
+    /* FIX 1: 100dvh on html & body for stable iPad viewport */
     html, body {
       width: 100%;
-      height: 100%;
+      height: 100dvh;
       overflow: hidden;
       touch-action: manipulation;
     }
@@ -51,6 +53,7 @@
       color: var(--text);
       display: flex;
       flex-direction: column;
+      font-family: var(--font);
       -webkit-font-smoothing: antialiased;
     }
 
@@ -74,6 +77,7 @@
       align-items: center;
     }
 
+    /* FIX 4: Logo uses Outfit 800 */
     .logo {
       font-family: var(--font-display);
       font-size: 1.4rem;
@@ -91,10 +95,12 @@
       gap: 1.5rem;
     }
 
+    /* FIX 4: Nav links use Outfit 700 */
     nav a {
+      font-family: var(--font-display);
       color: var(--text-muted);
       text-decoration: none;
-      font-weight: 600;
+      font-weight: 700;
       font-size: 0.9rem;
       padding: 6px 12px;
       border-radius: var(--radius-m);
@@ -185,12 +191,14 @@
       }
     }
 
+    /* FIX 4: Nav auth button uses Outfit 700 */
     .nav-auth-btn {
+      font-family: var(--font-display);
       background: var(--accent);
       color: #fff !important;
       padding: 8px 18px !important;
       border-radius: 999px !important;
-      font-weight: 600 !important;
+      font-weight: 700 !important;
       font-size: 0.85rem !important;
       text-decoration: none !important;
       display: inline-block;
@@ -211,13 +219,15 @@
       transition: left 0.5s ease;
     }
 
+    /* FIX 4: Primary button uses Outfit 700 */
     .btn-primary {
+      font-family: var(--font-display);
       background: var(--accent);
       color: #fff;
       padding: 10px 22px;
       border: none;
       border-radius: var(--radius-m);
-      font-weight: 600;
+      font-weight: 700;
       cursor: pointer;
       box-shadow: 0 4px 20px var(--accent-glow);
       transition: all 0.3s var(--ease);
@@ -500,11 +510,14 @@
     }
 
     /* ── LAYOUT MECHANICS ─────────────────────────────────── */
+    /* FIX 1: Use flex-based sizing rather than calc(--vh) so
+              the layout properly respects dvh + sticky header. */
     .chat-layout {
       display: flex;
       justify-content: center;
       align-items: stretch;
-      height: calc(var(--vh, 1vh) * 100 - 72px);
+      flex: 1;
+      min-height: 0;
       width: 100vw;
       overflow: hidden;
       background: var(--bg);
@@ -532,7 +545,16 @@
     }
 
     .chat-meta { display: flex; align-items: center; gap: 0.75rem; }
-    .channel-title { font-family: var(--font-display); font-size: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+
+    /* FIX 4: Channel title uses Outfit 800 and a slightly larger size */
+    .channel-title {
+      font-family: var(--font-display);
+      font-size: 1.15rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
 
     .message-scroller {
       flex: 1;
@@ -551,9 +573,25 @@
     .msg-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
     .msg-content { width: 100%; padding-right: 80px; }
     .msg-top { display: flex; align-items: center; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 0.35rem; }
-    .msg-content h5 { font-family: var(--font-display); font-size: 0.95rem; font-weight: 700; margin: 0; color: var(--text); }
+
+    /* FIX 4: Username uses Outfit 800, bumped size to 1rem */
+    .msg-content h5 {
+      font-family: var(--font-display);
+      font-size: 1rem;
+      font-weight: 800;
+      margin: 0;
+      color: var(--text);
+    }
     .msg-content h5 span { font-size: 0.75rem; color: var(--text-muted); margin-left: 8px; font-weight: 500; }
-    .msg-content p { color: #cbd5e1; font-size: 0.95rem; line-height: 1.7; margin: 0; }
+
+    /* FIX 4: Message body text bumped to 1.05rem weight 600 */
+    .msg-content p {
+      color: #cbd5e1;
+      font-size: 1.05rem;
+      font-weight: 600;
+      line-height: 1.7;
+      margin: 0;
+    }
 
     .msg-controls-tray { position: absolute; right: 10px; top: 12px; display: flex; gap: 8px; align-items: center; }
 
@@ -572,7 +610,7 @@
 
     .btn-duel-accept { background: #10b981; color: white; border: none; padding: 6px 14px; border-radius: 6px; font-weight: 700; font-size: 0.8rem; cursor: pointer; transition: background 0.2s ease; }
     .btn-duel-accept:disabled { background: #065f46; cursor: not-allowed; opacity: 0.6; }
-    
+
     .btn-duel-decline { background: #ef4444; color: white; border: none; padding: 6px 14px; border-radius: 6px; font-weight: 700; font-size: 0.8rem; cursor: pointer; transition: background 0.2s ease; }
     .btn-duel-decline:disabled { background: #991b1b; cursor: not-allowed; opacity: 0.6; }
 
@@ -614,6 +652,7 @@
       transition: color 0.2s ease;
     }
 
+    /* FIX 4: Input field text bumped to 1rem weight 600 */
     .input-container .input-field {
       width: 100%;
       background: var(--surface);
@@ -622,7 +661,8 @@
       border: 1px solid var(--border);
       color: var(--text);
       outline: none;
-      font-size: 0.9rem;
+      font-size: 1rem;
+      font-weight: 600;
       transition: all 0.3s var(--ease);
       touch-action: manipulation;
     }
@@ -654,18 +694,19 @@
       transition: none !important;
     }
 
+    /* FIX 2: Popover height, positioning, z-index for iPad keyboard */
     .suggestions-popover {
       position: absolute;
-      bottom: calc(100% - 4px);
+      bottom: calc(100% + 6px);
       left: 1.5rem;
       right: 1.5rem;
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 8px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-      max-height: 220px;
+      box-shadow: 0 -8px 24px rgba(0,0,0,0.6);
+      max-height: 160px;
       overflow-y: auto;
-      z-index: 10;
+      z-index: 1000;
       display: none;
       padding: 6px 0;
       -webkit-overflow-scrolling: touch;
@@ -826,7 +867,33 @@ const supabaseUrl = "https://hbynnertatvxpvtqctyg.supabase.co";
 const supabaseKey = "sb_publishable_WnnU16Mfj1rmRJcEStOzeQ_BExLbP2C";
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-/* ── DYNAMIC VIEWPORT HEIGHT & iOS HIDING ─────────────── */
+/* ── FIX 1: DYNAMIC VIEWPORT HEIGHT & iOS KEYBOARD LOCK ─── */
+/* Lock window scroll to top whenever the visual viewport shifts
+   (keyboard open/close), and when the input field focuses/blurs. */
+function lockScrollToTop() {
+  window.scrollTo(0, 0);
+}
+
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('scroll', lockScrollToTop);
+  window.visualViewport.addEventListener('resize', lockScrollToTop);
+}
+
+const messageInput = document.getElementById("message-input");
+if (messageInput) {
+  messageInput.addEventListener("focus", () => {
+    setTimeout(lockScrollToTop, 30);
+    setTimeout(lockScrollToTop, 150);
+    setTimeout(lockScrollToTop, 400);
+    setTimeout(lockScrollToTop, 800);
+  });
+  messageInput.addEventListener("blur", () => {
+    setTimeout(lockScrollToTop, 50);
+    setTimeout(lockScrollToTop, 200);
+  });
+}
+
+/* Kept original --vh setter for any legacy calc() consumers */
 function setVh() {
   document.documentElement.style.setProperty('--vh', `${window.innerHeight * 0.01}px`);
 }
@@ -842,6 +909,41 @@ const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platfor
 if (isIOS) {
   const ssBtn = document.getElementById('vc-screenshare-btn');
   if (ssBtn) ssBtn.style.setProperty('display', 'none');
+}
+
+/* ── FIX 3: TOUCH/SCROLL vs TAP THRESHOLD HELPER ──────────── */
+/* Tracks initial touch point on press-down. On release, computes
+   displacement via Math.hypot. If total movement exceeds 4px, treat
+   the interaction as a scroll gesture and ignore selection. If <=4px,
+   execute the selection callback (a tap). */
+function addTouchSafeSelection(element, selectionCallback) {
+  let startX = 0, startY = 0, hasFired = false;
+
+  const onStart = (e) => {
+    const point = e.touches ? e.touches[0] : e;
+    startX = point.clientX;
+    startY = point.clientY;
+    hasFired = false;
+  };
+
+  const onEnd = (e) => {
+    if (hasFired) return;
+    const point = e.changedTouches ? e.changedTouches[0] : e;
+    const dx = point.clientX - startX;
+    const dy = point.clientY - startY;
+    const distance = Math.hypot(dx, dy);
+    if (distance > 4) return; // Scrolled >4px — ignore selection
+
+    hasFired = true;
+    e.preventDefault();
+    e.stopPropagation();
+    selectionCallback(e);
+  };
+
+  element.addEventListener('pointerdown', onStart);
+  element.addEventListener('pointerup', onEnd);
+  element.addEventListener('touchstart', onStart, { passive: true });
+  element.addEventListener('touchend', onEnd);
 }
 
 const EX_COMMANDS = [
@@ -1005,7 +1107,7 @@ supabase.auth.onAuthStateChange(async (event, session) => {
       const data = payload.new;
       const oldBannedUntil = currentUserBannedUntil;
       const oldMutedUntil = currentUserMutedUntil;
-      
+
       currentUsername = data.username || currentUsername;
       currentUserRole = data.role || "user";
       currentUserMutedUntil = data.mutedUntil || 0;
@@ -1037,12 +1139,12 @@ supabase.auth.onAuthStateChange(async (event, session) => {
             textContainer.textContent = "";
           }
         }
-        
+
         if (oldBannedUntil && oldBannedUntil > Date.now() && (!currentUserBannedUntil || currentUserBannedUntil <= Date.now())) {
           const inputRow = document.querySelector(".input-row");
           const inputField = document.getElementById("message-input");
           const sendBtn = document.getElementById("send-message-btn");
-          
+
           if (inputRow) inputRow.style.display = "flex";
           if (inputField) inputField.disabled = false;
           if (sendBtn) sendBtn.disabled = false;
@@ -1065,7 +1167,7 @@ function handleBannedUserDisplay() {
   const inputRow = document.querySelector(".input-row");
   const inputField = document.getElementById("message-input");
   const sendBtn = document.getElementById("send-message-btn");
-  
+
   if(inputRow) inputRow.style.display = "none";
   if(inputField) inputField.disabled = true;
   if(sendBtn) sendBtn.disabled = true;
@@ -1207,13 +1309,6 @@ async function ensureNotificationPermission() {
   return await Notification.requestPermission();
 }
 
-const messageInput = document.getElementById("message-input");
-if (messageInput) {
-  messageInput.addEventListener("blur", () => {
-    window.scrollTo(0, 0);
-  });
-}
-
 function getMentionTargets(text) {
   if (!text) return [];
   const matches = text.match(/@[^\s]+/g) || [];
@@ -1326,10 +1421,10 @@ function startCooldownTimer(forcedMuteTime = null) {
 function attachStreamToVideo(peerId, stream, isLocal = false) {
   const grid = document.getElementById('vc-participant-grid');
   if (!grid) return;
-  
+
   const tile = grid.querySelector(`[data-peer-id="${peerId}"]`);
   if (!tile) return;
-  
+
   const videoEl = tile.querySelector('video');
   if (videoEl && stream) {
     videoEl.srcObject = stream;
@@ -1341,14 +1436,14 @@ function attachStreamToVideo(peerId, stream, isLocal = false) {
 function updateGridParticipantLayout(participantsArray) {
   const grid = document.getElementById('vc-participant-grid');
   const countDisplay = document.getElementById('vc-participant-count');
-  
+
   if (!grid || !countDisplay) return;
 
   const count = participantsArray.length;
   countDisplay.textContent = `${count} participant${count !== 1 ? 's' : ''}`;
 
   grid.className = '';
-  
+
   if (count === 1) grid.classList.add('count-1');
   else if (count === 2) grid.classList.add('count-2');
   else if (count === 3) grid.classList.add('count-3');
@@ -1381,10 +1476,10 @@ function updateGridParticipantLayout(participantsArray) {
     const videoEl = document.createElement('video');
     videoEl.autoplay = true;
     videoEl.playsInline = true;
-    videoEl.setAttribute('playsinline', ''); 
+    videoEl.setAttribute('playsinline', '');
     videoEl.setAttribute('webkit-playsinline', '');
     videoEl.muted = participant.peerId === currentUser?.id;
-    
+
     if (!participant.isCameraOn && !participant.isScreenSharing) {
       videoEl.classList.add('is-hidden');
     }
@@ -1478,8 +1573,8 @@ function setParticipantMediaState(peerId, state) {
     if (micBtn) {
       const micImg = micBtn.querySelector('img');
       if (micImg) {
-        micImg.src = vcLocalState.isMuted 
-          ? '../assets/chat-vc-mic-muted.svg' 
+        micImg.src = vcLocalState.isMuted
+          ? '../assets/chat-vc-mic-muted.svg'
           : '../assets/chat-vc-mic-unmuted.svg';
       }
     }
@@ -1487,8 +1582,8 @@ function setParticipantMediaState(peerId, state) {
     if (camBtn) {
       const camImg = camBtn.querySelector('img');
       if (camImg) {
-        camImg.src = vcLocalState.isCameraOn 
-          ? '../assets/chat-vc-camera-enabled.svg' 
+        camImg.src = vcLocalState.isCameraOn
+          ? '../assets/chat-vc-camera-enabled.svg'
           : '../assets/chat-vc-camera-disabled.svg';
       }
     }
@@ -1514,7 +1609,7 @@ async function joinVoiceRoom(roomId) {
   }
 
   const myPeerId = currentUser.id;
-  
+
   if (typeof Peer === 'undefined') {
     console.error('PeerJS library not loaded');
     showLocalSystemMessage('Voice chat system failed to initialize.', true);
@@ -1599,7 +1694,7 @@ function broadcastVCPresence(roomId, peerId) {
 
 function handleVCJoinEvent(payload) {
   const { peerId, username } = payload;
-  
+
   if (!peerId || peerId === currentUser?.id) return;
 
   if (!vcParticipants.has(peerId)) {
@@ -1624,7 +1719,7 @@ function handleVCLeaveEvent(payload) {
   if (!peerId || peerId === currentUser?.id) return;
 
   vcParticipants.delete(peerId);
-  
+
   const remoteStream = vcRemoteStreams.get(peerId);
   if (remoteStream) {
     remoteStream.getTracks().forEach(track => track.stop());
@@ -1654,12 +1749,12 @@ function handleVCStateEvent(payload) {
 
 function callPeer(peerId) {
   if (!vcPeer || !vcLocalStream) return;
-  
+
   if (vcCalls.has(peerId)) return;
 
   console.log('Calling peer:', peerId);
   const call = vcPeer.call(peerId, vcLocalStream);
-  
+
   if (!call) return;
 
   vcCalls.set(peerId, call);
@@ -1839,10 +1934,10 @@ async function flipCamera() {
       video: { facingMode: newFacingMode },
       audio: true
     });
-    
+
     vcLocalState.currentFacingMode = newFacingMode;
     const newVideoTrack = newStream.getVideoTracks()[0];
-    
+
     vcCalls.forEach((call) => {
       if (call.peerConnection) {
         const sender = call.peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
@@ -1855,7 +1950,7 @@ async function flipCamera() {
     videoTrack.stop();
     vcLocalStream.removeTrack(videoTrack);
     vcLocalStream.addTrack(newVideoTrack);
-    
+
     const localTile = document.querySelector(`[data-peer-id="${currentUser.id}"] video`);
     if (localTile) localTile.srcObject = vcLocalStream;
 
@@ -1981,7 +2076,7 @@ async function startChat(user) {
   listenForNewMessages(user);
   scroller.addEventListener("scroll", handleScrollPagination);
   setupAutocompleteEngine(input);
-  
+
   setInterval(async () => {
     if (!currentUser) return;
     const { data: profile, error } = await supabase.from("users").select("bannedUntil, mutedUntil, role").eq("id", currentUser.id).single();
@@ -1991,7 +2086,7 @@ async function startChat(user) {
       currentUserBannedUntil = profile.bannedUntil || 0;
       currentUserMutedUntil = profile.mutedUntil || 0;
       currentUserRole = profile.role || "user";
-      
+
       if (currentUserBannedUntil && Date.now() < currentUserBannedUntil) {
         handleBannedUserDisplay();
       } else if (oldBannedUntil && oldBannedUntil > Date.now() && (!currentUserBannedUntil || currentUserBannedUntil <= Date.now())) {
@@ -2001,7 +2096,7 @@ async function startChat(user) {
         if (inputRow) inputRow.style.display = "flex";
         if (inputField) inputField.disabled = false;
         if (sendBtn) sendBtn.disabled = false;
-        
+
         if (currentUserMutedUntil && Date.now() < currentUserMutedUntil) {
           startCooldownTimer(currentUserMutedUntil);
         } else if (activeMuteInterval) {
@@ -2071,7 +2166,7 @@ async function startChat(user) {
       handleBannedUserDisplay();
       return;
     }
-    
+
     let textToSend = input.value.trim();
     if (!textToSend) return;
 
@@ -2114,12 +2209,12 @@ async function startChat(user) {
     if (textToSend.startsWith("/")) {
       const segments = textToSend.split(/\s+/);
       const commandKey = segments[0].toLowerCase();
-      
+
       const mentions = textToSend.match(/@[^\s]+/g) || [];
       let targetUsernames = mentions.map(m => m.substring(1).replace(/[.,!?;:]+$/, '').toLowerCase()).filter(Boolean);
-      
+
       let effectiveSegments = [...segments];
-      
+
       if (targetUsernames.length === 0 && segments.length > 1) {
         const firstArg = segments[1];
         const isDuration = /^\d+(s|m|h|d|w|mo|y)$/i.test(firstArg);
@@ -2182,7 +2277,7 @@ async function startChat(user) {
       if (commandKey === "/privatevc") {
         const mentionsPrivate = textToSend.match(/@[^\s]+/g) || [];
         let targetUsernamesPrivate = mentionsPrivate.map(m => m.replace("@", "").replace(/[.,!?;:]+$/, '').toLowerCase()).filter(Boolean);
-        
+
         if (targetUsernamesPrivate.length === 0) {
           let i = 1;
           while (i < segments.length && segments[i].length > 0) {
@@ -2377,11 +2472,11 @@ async function startChat(user) {
         const targetUser = await resolveTargetUser();
         const reason = effectiveSegments.slice(2).join(" ");
         if (!targetUser || !reason) { showLocalSystemMessage("Syntax: /warn @username [reason]", true); return; }
-        
+
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const todayTimestamp = today.toISOString();
-        
+
         let warnCount = 1;
         try {
             const { data: warnsToday } = await supabase
@@ -2394,7 +2489,7 @@ async function startChat(user) {
         } catch(e) { console.warn("Could not fetch warn count", e); }
 
         const warnText = `Warning ${warnCount}: ${reason}`;
-        
+
         await supabase.from("whispers").insert([{
             text: warnText,
             username: "Server",
@@ -2402,7 +2497,7 @@ async function startChat(user) {
             participants: [currentUser.id, targetUser.id],
             role: "system"
         }]);
-        
+
         showLocalSystemMessage(`Issued Warning ${warnCount} to @${targetUser.username}.`, false);
         return;
       }
@@ -2731,7 +2826,7 @@ function displayMessage(scroller, msgData) {
     const fileName = rawText.split('/').pop().split('?')[0];
     textContent = `
       <div style="margin-top: 6px;">
-        <img src="${escapeHtml(rawText)}" alt="Uploaded File" crossorigin="anonymous" style="max-width: 100%; max-height: 320px; border-radius: 8px; display: block; background: #181b33; object-fit: contain;" onerror="this.onerror=null; this.parentElement.innerHTML='<a href=\'${escapeHtml(rawText)}\' target=\'_blank\' download style=\'display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.06); padding: 8px 12px; border-radius: 6px; color: #3b82f6; text-decoration: none; font-weight: 600;\'>Download ${escapeHtml(fileName)}</a>';" />
+        <img src="${escapeHtml(rawText)}" alt="Uploaded File" crossorigin="anonymous" style="max-width: 100%; max-height: 320px; border-radius: 8px; display: block; background: #181b33; object-fit: contain;" onerror="this.onerror=null; this.parentElement.innerHTML='<a href=\\'${escapeHtml(rawText)}\\' target=\\'_blank\\' download style=\\'display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.06); padding: 8px 12px; border-radius: 6px; color: #3b82f6; text-decoration: none; font-weight: 600;\\'>Download ${escapeHtml(fileName)}</a>';" />
       </div>
     `;
   } else if (isVideo) {
@@ -2792,7 +2887,7 @@ function displayMessage(scroller, msgData) {
     `;
   } else if (msgData.type === "vc_invite" || msgData.isSystemMessage) {
     let vcButtonsHTML = "";
-    
+
     if (msgData.type === "vc_invite" && msgData.room_id && msgData.text !== "This call has ended.") {
       vcButtonsHTML = `
         <div style="display: flex; gap: 8px; margin-top: 8px;">
@@ -2852,7 +2947,7 @@ function displayMessage(scroller, msgData) {
   if (msgData.isOmoggleInvite && msgData.inviteStatus === "pending" && currentUser && currentUser.id !== msgData.senderId) {
     const accBtn = div.querySelector(".btn-duel-accept");
     const decBtn = div.querySelector(".btn-duel-decline");
-    
+
     if (accBtn) {
       accBtn.onclick = async (e) => {
         e.stopPropagation();
@@ -2867,7 +2962,7 @@ function displayMessage(scroller, msgData) {
         }
       };
     }
-    
+
     if (decBtn) {
       decBtn.onclick = async (e) => {
         e.stopPropagation();
@@ -3053,7 +3148,8 @@ function setupAutocompleteEngine(input) {
         items[activeSuggestionIndex].scrollIntoView({ block: "nearest" });
       } else if (e.key === "Enter" || e.key === "Tab") {
         e.preventDefault();
-        items[activeSuggestionIndex].dispatchEvent(new Event("pointerdown"));
+        // Use touch-safe dispatcher to respect the 4px threshold
+        items[activeSuggestionIndex].dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: 0, clientY: 0 }));
       } else if (e.key === "Escape") {
         closePopover();
       }
@@ -3080,6 +3176,7 @@ function setupAutocompleteEngine(input) {
   });
 }
 
+/* FIX 3: showCommands uses touch-safe selection (4px threshold) */
 function showCommands(cmds) {
   const popover = document.getElementById("suggestions-popover");
   activeSuggestionIndex = 0;
@@ -3090,21 +3187,21 @@ function showCommands(cmds) {
     div.className = "suggestion-item" + (idx === 0 ? " selected" : "");
     div.innerHTML = `<span class="item-icon">/</span> <strong>${c.name}</strong> &nbsp; <span style="color:var(--text-muted); font-size:0.8rem;">${c.desc}</span>`;
 
-    div.onpointerdown = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
+    addTouchSafeSelection(div, () => {
       const input = document.getElementById("message-input");
       input.value = c.name + " ";
       input.focus();
       input.selectionStart = input.selectionEnd = input.value.length;
       closePopover();
       input.dispatchEvent(new Event("input"));
-    };
+    });
+
     popover.appendChild(div);
   });
   popover.style.display = "block";
 }
 
+/* FIX 3: showMentions uses touch-safe selection (4px threshold) */
 function showMentions(users, type) {
   currentMentionType = type;
   const popover = document.getElementById("suggestions-popover");
@@ -3131,9 +3228,7 @@ function showMentions(users, type) {
       }
     }
 
-    div.onpointerdown = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
+    addTouchSafeSelection(div, () => {
       const input = document.getElementById("message-input");
       const currentVal = input.value;
       let newCursorPos = 0;
@@ -3162,7 +3257,8 @@ function showMentions(users, type) {
       input.focus();
       input.selectionStart = input.selectionEnd = newCursorPos;
       closePopover();
-    };
+    });
+
     popover.appendChild(div);
   });
   popover.style.display = "block";
