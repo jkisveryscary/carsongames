@@ -502,6 +502,7 @@
       background: var(--card);
       overflow: hidden;
       position: relative;
+      height: 100%;
     }
 
     .chat-header {
@@ -565,6 +566,7 @@
 
     .input-container {
       padding: 0 1.5rem 1.5rem;
+      padding-bottom: max(1.5rem, calc(1.5rem + env(safe-area-inset-bottom, 0px)));
       position: relative;
       flex-shrink: 0;
     }
@@ -799,11 +801,23 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 /* ── iOS VISUAL VIEWPORT & KEYBOARD FIXES ─────────────── */
 function updateLayoutDimensions() {
-  // Update CSS variable for accurate viewport height tracking on iOS
+  // Use visualViewport for accurate iOS Safari viewport height
+  // This handles tab bar expand/collapse and keyboard appearance seamlessly
+  let viewportHeight;
   if (window.visualViewport) {
-    const vh = window.visualViewport.height * 0.01;
-    document.documentElement.style.setProperty('--vh', `${vh}px`);
+    viewportHeight = window.visualViewport.height;
+  } else {
+    viewportHeight = window.innerHeight;
   }
+
+  // Update CSS variable for accurate viewport height tracking on iOS
+  const vh = viewportHeight * 0.01;
+  document.documentElement.style.setProperty('--vh', `${vh}px`);
+
+  // Directly set body height to match visible viewport in pixels
+  // This prevents the input bar from being pushed out of view when
+  // the browser tab bar expands/collapses on iPad Safari
+  document.body.style.height = `${viewportHeight}px`;
 
   // Ensure popover stays within visible bounds when keyboard is open
   const popover = document.getElementById('suggestions-popover');
@@ -811,7 +825,6 @@ function updateLayoutDimensions() {
     const inputContainer = document.querySelector('.input-container');
     if (inputContainer) {
       const inputRect = inputContainer.getBoundingClientRect();
-      const viewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
       // Space available between the top of the input container and the top of the visible viewport
       // Accounting for 72px header height + 10px buffer
       const availableSpace = inputRect.top - 72 - 10;
