@@ -40,9 +40,7 @@
     }
 
     html, body {
-      position: fixed;
       width: 100%;
-      height: 100%;
       overflow: hidden;
       touch-action: manipulation;
       overscroll-behavior: none;
@@ -52,8 +50,14 @@
     }
 
     body {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: calc(var(--vh, 1vh) * 100);
       display: flex;
       flex-direction: column;
+      overscroll-behavior: none;
     }
 
     header {
@@ -62,9 +66,7 @@
       -webkit-backdrop-filter: blur(20px);
       border-bottom: 1px solid var(--border);
       padding: 1rem 2rem;
-      position: fixed;
-      top: 0;
-      left: 0;
+      position: relative;
       width: 100%;
       z-index: 999;
       flex-shrink: 0;
@@ -349,6 +351,8 @@
       padding: 1rem 1.5rem;
       height: calc(100% - 64px);
       overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-y;
     }
 
     #vc-participant-grid.count-1 { grid-template-columns: 1fr; grid-template-rows: 1fr; }
@@ -471,12 +475,12 @@
 
     /* ── LAYOUT MECHANICS ─────────────────────────────────── */
     .chat-layout {
-      margin-top: 72px;
       display: flex;
       justify-content: center;
       align-items: stretch;
-      height: calc(100dvh - 72px);
-      width: 100vw;
+      flex: 1;
+      min-height: 0;
+      width: 100%;
       overflow: hidden;
       background: var(--bg);
       position: relative;
@@ -638,7 +642,7 @@
       border: 1px solid var(--border);
       border-radius: 8px;
       box-shadow: 0 -8px 24px rgba(0,0,0,0.6);
-      max-height: 160px;
+      max-height: 240px;
       overflow-y: auto;
       z-index: 1000;
       display: none;
@@ -780,79 +784,31 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 /* ── iOS VISUAL VIEWPORT & KEYBOARD FIXES ─────────────── */
 function updateLayoutDimensions() {
-  const layout = document.getElementById('chat-layout');
-  if (!layout) return;
-
+  // Update CSS variable for accurate viewport height tracking on iOS
   if (window.visualViewport) {
-    const headerHeight = 72;
-    const vpHeight = window.visualViewport.height;
-    const targetHeight = Math.max(vpHeight - headerHeight, 100);
-    layout.style.height = `${targetHeight}px`;
-  } else {
-    layout.style.height = `calc(100dvh - 72px)`;
+    const vh = window.visualViewport.height * 0.01;
+    document.documentElement.style.setProperty('--vh', `${vh}px`);
   }
 
   // Ensure popover stays within visible bounds when keyboard is open
   const popover = document.getElementById('suggestions-popover');
   if (popover && popover.style.display === 'block') {
     const inputContainer = document.querySelector('.input-container');
-    if (inputContainer && window.visualViewport) {
+    if (inputContainer) {
       const inputRect = inputContainer.getBoundingClientRect();
-      const viewportHeight = window.visualViewport.height;
-      const viewportOffsetTop = window.visualViewport.offsetTop || 0;
-      const availableSpace = viewportHeight - (inputRect.top - viewportOffsetTop) - 20;
-      if (availableSpace > 60 && availableSpace < 160) {
-        popover.style.maxHeight = `${availableSpace}px`;
+      const viewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+      // Space available between the top of the input container and the top of the visible viewport
+      const availableSpace = inputRect.top - 20;
+      const minPopoverHeight = 100;
+      const maxPopoverHeight = 240;
+
+      if (availableSpace < maxPopoverHeight) {
+        popover.style.maxHeight = `${Math.max(availableSpace, minPopoverHeight)}px`;
       } else {
-        popover.style.maxHeight = '160px';
+        popover.style.maxHeight = `${maxPopoverHeight}px`;
       }
     }
   }
-}
-
-updateLayoutDimensions();
-
-if (window.visualViewport) {
-  window.visualViewport.addEventListener('resize', () => {
-    window.scrollTo(0, 0);
-    updateLayoutDimensions();
-    const scroller = document.getElementById('message-scroller');
-    if (scroller) {
-      scroller.scrollTop = scroller.scrollHeight;
-    }
-  });
-  window.visualViewport.addEventListener('scroll', () => {
-    window.scrollTo(0, 0);
-    updateLayoutDimensions();
-  });
-}
-
-const messageInput = document.getElementById("message-input");
-if (messageInput) {
-  messageInput.addEventListener("focus", () => {
-    setTimeout(() => {
-      const scroller = document.getElementById('message-scroller');
-      if (scroller) {
-        scroller.scrollTop = scroller.scrollHeight;
-      }
-      window.scrollTo(0, 0);
-      updateLayoutDimensions();
-    }, 100);
-  });
-
-  messageInput.addEventListener("blur", () => {
-    window.scrollTo(0, 0);
-    setTimeout(() => {
-      updateLayoutDimensions();
-      window.scrollTo(0, 0);
-    }, 100);
-  });
-}
-
-const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-if (isIOS) {
-  const ssBtn = document.getElementById('vc-screenshare-btn');
-  if (ssBtn) ssBtn.style.setProperty('display', 'none');
 }
 
 const EX_COMMANDS = [
@@ -3308,6 +3264,70 @@ window.joinVoiceRoom = joinVoiceRoom;
 window.leaveVoiceRoom = leaveVoiceRoom;
 window.setParticipantMediaState = setParticipantMediaState;
 window.updateGridParticipantLayout = updateGridParticipantLayout;
+
+/* ── DOM READY INITIALIZATION SAFEGUARD ────────────────────── */
+document.addEventListener('DOMContentLoaded', () => {
+  // Safeguard: ensure layout calculations wait until DOM is fully parsed and rendered
+  updateLayoutDimensions();
+
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (isIOS) {
+    const ssBtn = document.getElementById('vc-screenshare-btn');
+    if (ssBtn) ssBtn.style.setProperty('display', 'none');
+  }
+
+  /* ── iOS VISUAL VIEWPORT & KEYBOARD EVENT BINDING ───────── */
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', () => {
+      // Removed window.scrollTo(0, 0) to stop flicker/jitter
+      updateLayoutDimensions();
+      const scroller = document.getElementById('message-scroller');
+      if (scroller) {
+        scroller.scrollTop = scroller.scrollHeight;
+      }
+    });
+    window.visualViewport.addEventListener('scroll', () => {
+      // Removed window.scrollTo(0, 0) to stop flicker/jitter
+      updateLayoutDimensions();
+    });
+  }
+
+  const messageInput = document.getElementById("message-input");
+  if (messageInput) {
+    messageInput.addEventListener("focus", () => {
+      setTimeout(() => {
+        const scroller = document.getElementById('message-scroller');
+        if (scroller) {
+          scroller.scrollTop = scroller.scrollHeight;
+        }
+        // Removed window.scrollTo(0, 0)
+        updateLayoutDimensions();
+      }, 100);
+    });
+
+    messageInput.addEventListener("blur", () => {
+      // Removed window.scrollTo(0, 0)
+      setTimeout(() => {
+        updateLayoutDimensions();
+        // Removed window.scrollTo(0, 0)
+      }, 100);
+    });
+  }
+
+  /* ── TOUCH SCROLLING INTERRUPTION PREVENTION ─────────────── */
+  // Prevents root elastic bouncing on non-scrollable UI backgrounds
+  // while allowing momentum flick-scrolling inside designated containers
+  document.addEventListener('touchmove', function(e) {
+    const scrollableContainer = e.target.closest('#message-scroller, #suggestions-popover, #vc-participant-grid');
+    if (scrollableContainer) return; // Allow natural scrolling inside these elements
+    
+    // Allow touch interactions on interactive elements (buttons, links, inputs)
+    const interactive = e.target.closest('button, a, input, [role="button"], .action-control-btn, .btn-duel-accept, .btn-duel-decline, .btn-upload-file, .vc-control-btn, .suggestion-item, .nav-auth-btn, .btn-primary');
+    if (interactive) return;
+    
+    e.preventDefault(); // Prevent elastic bouncing on non-scrollable backgrounds
+  }, { passive: false });
+});
 </script>
 </body>
 </html>
