@@ -67,9 +67,20 @@
       overscroll-behavior: none;
     }
 
-    /* Keep the composer slightly closer to the iOS keyboard when it is open. */
+    /* Keep the page anchored while iOS shows the keyboard. */
+    html.keyboard-open {
+      overflow: hidden !important;
+    }
+
+    body.keyboard-open {
+      height: 100%;
+      overflow: hidden;
+    }
+
+    /* Move the actual message input row slightly down toward the keyboard. */
     body.keyboard-open .input-container {
-      padding-bottom: 0.5rem;
+      padding-bottom: 0;
+      transform: translateY(calc(-1 * var(--keyboard-height, 0px) + 4px));
     }
 
     header {
@@ -815,9 +826,13 @@ function updateLayoutDimensions() {
     viewportHeight = window.innerHeight;
   }
 
-  // Update CSS variable for accurate viewport height tracking on iOS
+  // Update CSS variables for accurate iOS viewport and keyboard tracking.
   const vh = viewportHeight * 0.01;
   document.documentElement.style.setProperty('--vh', `${vh}px`);
+  const keyboardHeight = window.visualViewport
+    ? Math.max(0, window.innerHeight - viewportHeight)
+    : 0;
+  document.documentElement.style.setProperty('--keyboard-height', `${keyboardHeight}px`);
 
   // When the iOS keyboard is open, reduce the composer's bottom padding so
   // the input sits slightly closer to the keyboard without affecting other pages.
@@ -827,6 +842,14 @@ function updateLayoutDimensions() {
   );
   const keyboardOpen = isTextInput && viewportHeight < window.innerHeight - 150;
   document.body.classList.toggle('keyboard-open', keyboardOpen);
+  document.documentElement.classList.toggle('keyboard-open', keyboardOpen);
+
+  // iOS Safari can pan the root page when the keyboard opens, even though
+  // the chat body is fixed. Reset the root scroll position so the page
+  // itself never slides away and exposes the background above the keyboard.
+  if (keyboardOpen && (window.scrollX !== 0 || window.scrollY !== 0)) {
+    window.scrollTo(0, 0);
+  }
 
   // Ensure popover stays within visible bounds when keyboard is open
   const popover = document.getElementById('suggestions-popover');
@@ -3344,8 +3367,15 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
     window.visualViewport.addEventListener('scroll', () => {
-      // Removed window.scrollTo(0, 0) to stop flicker/jitter
       updateLayoutDimensions();
+      // Safari may pan the root document while the keyboard is visible.
+      // Keep the fixed chat page anchored at the top without interfering
+      // with normal scrolling inside the message scroller.
+      if (document.body.classList.contains('keyboard-open')) {
+        if (window.scrollX !== 0 || window.scrollY !== 0) {
+          window.scrollTo(0, 0);
+        }
+      }
     });
   }
 
@@ -3357,16 +3387,16 @@ document.addEventListener('DOMContentLoaded', () => {
         if (scroller) {
           scroller.scrollTop = scroller.scrollHeight;
         }
-        // Removed window.scrollTo(0, 0)
         updateLayoutDimensions();
+        if (document.body.classList.contains('keyboard-open')) {
+          window.scrollTo(0, 0);
+        }
       }, 100);
     });
 
     messageInput.addEventListener("blur", () => {
-      // Removed window.scrollTo(0, 0)
       setTimeout(() => {
         updateLayoutDimensions();
-        // Removed window.scrollTo(0, 0)
       }, 100);
     });
   }
