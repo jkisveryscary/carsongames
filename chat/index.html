@@ -68,19 +68,18 @@
     }
 
     /* Keep the page anchored while iOS shows the keyboard. */
-    html.keyboard-open {
+    html.keyboard-open,
+    body.keyboard-open {
       overflow: hidden !important;
     }
 
-    body.keyboard-open {
-      height: 100%;
-      overflow: hidden;
-    }
-
-    /* Move the actual message input row slightly down toward the keyboard. */
+    /* Keep the actual message input row close to the keyboard.
+       The body already uses the visual viewport height, so no transform
+       is needed; translating by the keyboard height would move the whole
+       composer off-screen on iOS. */
     body.keyboard-open .input-container {
       padding-bottom: 0;
-      transform: translateY(calc(-1 * var(--keyboard-height, 0px) + 4px));
+      transform: none !important;
     }
 
     header {
