@@ -364,30 +364,34 @@
           .from("showdown_queue")
           .select("*")
           .eq("status", "waiting")
-          .neq("hostUid", currentUserProfile.id)
+          .neq("hostuid", currentUserProfile.id)
           .limit(5);
 
         let selectedDoc = queueItems?.[0];
 
         if (selectedDoc) {
           // PostgreSQL conditional matching update acts natively as a transactional lock
-          const { data: matchedRows } = await supabase
+          const { data: matchedRows, error: matchError } = await supabase
             .from("showdown_queue")
             .update({
               status: "matched",
-              guestPeerId: myPeerId,
-              guestUid: currentUserProfile.id,
-              guestName: currentUserProfile.username
+              guestpeerid: myPeerId,
+              guestuid: currentUserProfile.id,
+              guestname: currentUserProfile.username
             })
             .eq("id", selectedDoc.id)
             .eq("status", "waiting")
             .select();
 
+          if (matchError) {
+            console.error("Error updating queue row for guest:", matchError);
+          }
+
           if (matchedRows && matchedRows.length > 0) {
             const successData = matchedRows[0];
             isHost = false;
-            opponentNameTag.innerText = successData.hostName || "Player";
-            setupDataChannel(peer.connect(successData.hostPeerId));
+            opponentNameTag.innerText = successData.hostname || "Player";
+            setupDataChannel(peer.connect(successData.hostpeerid));
             inQueueProcess = false;
             return;
           }
@@ -395,19 +399,27 @@
 
         // Otherwise provision hosting parameters if no entry is active
         isHost = true;
-        const { data: newQueueItem } = await supabase
+        const { data: newQueueItem, error: insertError } = await supabase
           .from("showdown_queue")
           .insert([{
             status: "waiting",
-            hostPeerId: myPeerId,
-            hostUid: currentUserProfile.id,
-            hostName: currentUserProfile.username,
-            guestPeerId: "",
-            guestUid: "",
-            createdAt: Date.now()
+            hostpeerid: myPeerId,
+            hostuid: currentUserProfile.id,
+            hostname: currentUserProfile.username,
+            guestpeerid: "",
+            guestuid: null,
+            guestname: "",
+            createdat: Date.now()
           }])
           .select()
           .single();
+
+        if (insertError) {
+          console.error("Failed to insert queue item:", insertError);
+          lobbyMsg.innerText = "Queue creation failed. Check console for details.";
+          inQueueProcess = false;
+          return;
+        }
 
         if (newQueueItem) {
           activeQueueDocRef = newQueueItem.id;
@@ -420,7 +432,7 @@
             .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'showdown_queue', filter: `id=eq.${newQueueItem.id}` }, async (payload) => {
               const d = payload.new;
               if (d && d.status === "matched") {
-                opponentNameTag.innerText = d.guestName || "Player";
+                opponentNameTag.innerText = d.guestname || "Player";
                 await supabase.from("showdown_queue").delete().eq("id", newQueueItem.id);
                 if (queueChannel) {
                   supabase.removeChannel(queueChannel);
