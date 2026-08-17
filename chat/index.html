@@ -60,10 +60,16 @@
       top: 0;
       left: 0;
       right: 0;
-      height: 100dvh;
+      height: calc(var(--vh) * 100);
+      min-height: 0 !important;
       display: flex;
       flex-direction: column;
       overscroll-behavior: none;
+    }
+
+    /* Keep the composer slightly closer to the iOS keyboard when it is open. */
+    body.keyboard-open .input-container {
+      padding-bottom: 0.5rem;
     }
 
     header {
@@ -520,10 +526,10 @@
 
     .message-scroller {
       flex: 1;
-      padding: 1rem 1.5rem 0.5rem;
+      padding: 1.4rem 1.5rem;
       display: flex;
       flex-direction: column;
-      gap: 0.85rem;
+      gap: 1rem;
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
       overscroll-behavior: contain;
@@ -564,8 +570,8 @@
     .btn-duel-decline:disabled { background: #991b1b; cursor: not-allowed; opacity: 0.6; }
 
     .input-container {
-      padding: 0.6rem 1.5rem 1rem;
-      padding-bottom: max(1rem, calc(1rem + env(safe-area-inset-bottom, 0px)));
+      padding: 0 1.5rem 1.5rem;
+      padding-bottom: max(1.5rem, calc(1.5rem + env(safe-area-inset-bottom, 0px)));
       position: relative;
       flex-shrink: 0;
     }
@@ -800,6 +806,8 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 /* ── iOS VISUAL VIEWPORT & KEYBOARD FIXES ─────────────── */
 function updateLayoutDimensions() {
+  // Use visualViewport for accurate iOS Safari viewport height
+  // This handles tab bar expand/collapse and keyboard appearance seamlessly
   let viewportHeight;
   if (window.visualViewport) {
     viewportHeight = window.visualViewport.height;
@@ -807,14 +815,27 @@ function updateLayoutDimensions() {
     viewportHeight = window.innerHeight;
   }
 
+  // Update CSS variable for accurate viewport height tracking on iOS
   const vh = viewportHeight * 0.01;
   document.documentElement.style.setProperty('--vh', `${vh}px`);
 
+  // When the iOS keyboard is open, reduce the composer's bottom padding so
+  // the input sits slightly closer to the keyboard without affecting other pages.
+  const activeElement = document.activeElement;
+  const isTextInput = activeElement && (
+    activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA'
+  );
+  const keyboardOpen = isTextInput && viewportHeight < window.innerHeight - 150;
+  document.body.classList.toggle('keyboard-open', keyboardOpen);
+
+  // Ensure popover stays within visible bounds when keyboard is open
   const popover = document.getElementById('suggestions-popover');
   if (popover && popover.style.display === 'block') {
     const inputContainer = document.querySelector('.input-container');
     if (inputContainer) {
       const inputRect = inputContainer.getBoundingClientRect();
+      // Space available between the top of the input container and the top of the visible viewport
+      // Accounting for 72px header height + 10px buffer
       const availableSpace = inputRect.top - 72 - 10;
       const minPopoverHeight = 80;
       const maxPopoverHeight = 240;
@@ -907,6 +928,7 @@ let vcActiveRoomId = null;
 
 /* ── PEERJS VOICE/VIDEO STATE ─────────────────────────────── */
 let vcPeer = null;
+let vcPeerId = null;
 let vcLocalStream = null;
 let vcScreenStream = null;
 let vcCalls = new Map();
@@ -1361,7 +1383,7 @@ function updateGridParticipantLayout(participantsArray) {
     videoEl.playsInline = true;
     videoEl.setAttribute('playsinline', ''); 
     videoEl.setAttribute('webkit-playsinline', '');
-    videoEl.muted = participant.peerId === currentUser?.id;
+    videoEl.muted = participant.peerId === vcPeer?.id || participant.userId === currentUser?.id;
     
     if (!participant.isCameraOn && !participant.isScreenSharing) {
       videoEl.classList.add('is-hidden');
@@ -1417,7 +1439,7 @@ function updateGridParticipantLayout(participantsArray) {
 
     overlayEl.appendChild(infoEl);
 
-    if (participant.peerId === currentUser?.id) {
+    if (participant.peerId === vcPeer?.id || participant.userId === currentUser?.id && participant.peerId === vcPeer?.id) {
       const localBadge = document.createElement('div');
       localBadge.className = 'vc-local-badge';
       localBadge.textContent = 'You';
@@ -1430,7 +1452,7 @@ function updateGridParticipantLayout(participantsArray) {
 
     grid.appendChild(tile);
 
-    const stream = participant.peerId === currentUser?.id ? vcLocalStream : vcRemoteStreams.get(participant.peerId);
+    const stream = participant.peerId === vcPeer?.id ? vcLocalStream : vcRemoteStreams.get(participant.peerId);
     if (stream) {
       videoEl.srcObject = stream;
       videoEl.play().catch(e => console.warn('Video play error:', e));
@@ -1447,7 +1469,7 @@ function setParticipantMediaState(peerId, state) {
 
   updateGridParticipantLayout(Array.from(vcParticipants.values()));
 
-  if (peerId === currentUser?.id) {
+  if (peerId === vcPeer?.id) {
     Object.assign(vcLocalState, state);
 
     const micBtn = document.getElementById('vc-mic-btn');
@@ -1491,7 +1513,10 @@ async function joinVoiceRoom(roomId) {
     return;
   }
 
-  const myPeerId = currentUser.id;
+  const peerSuffix = (window.crypto && typeof window.crypto.randomUUID === 'function')
+    ? window.crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const myPeerId = `${currentUser.id}-${peerSuffix}`;
   
   if (typeof Peer === 'undefined') {
     console.error('PeerJS library not loaded');
@@ -1500,6 +1525,7 @@ async function joinVoiceRoom(roomId) {
   }
 
   vcPeer = new Peer(myPeerId);
+  vcPeerId = myPeerId;
 
   vcPeer.on('open', (id) => {
     console.log('PeerJS connected with ID:', id);
@@ -1508,6 +1534,9 @@ async function joinVoiceRoom(roomId) {
 
   vcPeer.on('call', (call) => {
     console.log('Incoming call from:', call.peer);
+    if (!vcCalls.has(call.peer)) {
+      vcCalls.set(call.peer, call);
+    }
     call.answer(vcLocalStream);
     handleIncomingCall(call);
   });
@@ -1529,14 +1558,15 @@ async function joinVoiceRoom(roomId) {
   subscribeToVCChannel(roomId);
 
   const localParticipant = {
-    peerId: currentUser.id,
+    peerId: myPeerId,
+    userId: currentUser.id,
     username: currentUsername,
     isMuted: vcLocalState.isMuted,
     isCameraOn: true,
     isScreenSharing: false,
     isSpeaking: false
   };
-  vcParticipants.set(currentUser.id, localParticipant);
+  vcParticipants.set(myPeerId, localParticipant);
   updateGridParticipantLayout(Array.from(vcParticipants.values()));
 }
 
@@ -1576,13 +1606,14 @@ function broadcastVCPresence(roomId, peerId) {
 }
 
 function handleVCJoinEvent(payload) {
-  const { peerId, username } = payload;
+  const { peerId, username, userId } = payload;
   
-  if (!peerId || peerId === currentUser?.id) return;
+  if (!peerId || peerId === vcPeer?.id) return;
 
   if (!vcParticipants.has(peerId)) {
     vcParticipants.set(peerId, {
       peerId: peerId,
+      userId: userId || null,
       username: username || 'User',
       isMuted: false,
       isCameraOn: true,
@@ -1592,14 +1623,16 @@ function handleVCJoinEvent(payload) {
     updateGridParticipantLayout(Array.from(vcParticipants.values()));
   }
 
-  if (currentUser?.id < peerId) {
+  const remoteUserId = userId || peerId;
+  const localPeerId = vcPeer?.id || '';
+  if (currentUser?.id < remoteUserId || (currentUser?.id === remoteUserId && localPeerId < peerId)) {
     callPeer(peerId);
   }
 }
 
 function handleVCLeaveEvent(payload) {
   const { peerId } = payload;
-  if (!peerId || peerId === currentUser?.id) return;
+  if (!peerId || peerId === vcPeer?.id) return;
 
   vcParticipants.delete(peerId);
   
@@ -1620,7 +1653,7 @@ function handleVCLeaveEvent(payload) {
 
 function handleVCStateEvent(payload) {
   const { peerId, state } = payload;
-  if (!peerId || peerId === currentUser?.id) return;
+  if (!peerId || peerId === vcPeer?.id) return;
 
   const participant = vcParticipants.get(peerId);
   if (participant) {
@@ -1651,6 +1684,7 @@ function handleIncomingCall(call) {
     if (!vcParticipants.has(call.peer)) {
       vcParticipants.set(call.peer, {
         peerId: call.peer,
+        userId: null,
         username: 'User',
         isMuted: false,
         isCameraOn: true,
@@ -1681,7 +1715,7 @@ async function leaveVoiceRoom() {
       type: 'broadcast',
       event: 'vc-leave',
       payload: {
-        peerId: currentUser?.id,
+        peerId: vcPeer?.id || currentUser?.id,
         timestamp: Date.now()
       }
     });
@@ -1723,6 +1757,7 @@ async function leaveVoiceRoom() {
     vcPeer.destroy();
     vcPeer = null;
   }
+  vcPeerId = null;
 
   vcParticipants.clear();
   vcActiveRoomId = null;
@@ -1765,14 +1800,14 @@ async function toggleMic() {
   audioTrack.enabled = !audioTrack.enabled;
   const newMutedState = !audioTrack.enabled;
 
-  setParticipantMediaState(currentUser.id, { isMuted: newMutedState });
+  setParticipantMediaState(vcPeer?.id || currentUser.id, { isMuted: newMutedState });
 
   if (vcRealtimeChannel) {
     vcRealtimeChannel.send({
       type: 'broadcast',
       event: 'vc-state',
       payload: {
-        peerId: currentUser.id,
+        peerId: vcPeer?.id || currentUser.id,
         state: { isMuted: newMutedState }
       }
     });
@@ -1787,14 +1822,14 @@ async function toggleCamera() {
   videoTrack.enabled = !videoTrack.enabled;
   const newCameraState = videoTrack.enabled;
 
-  setParticipantMediaState(currentUser.id, { isCameraOn: newCameraState });
+  setParticipantMediaState(vcPeer?.id || currentUser.id, { isCameraOn: newCameraState });
 
   if (vcRealtimeChannel) {
     vcRealtimeChannel.send({
       type: 'broadcast',
       event: 'vc-state',
       payload: {
-        peerId: currentUser.id,
+        peerId: vcPeer?.id || currentUser.id,
         state: { isCameraOn: newCameraState }
       }
     });
@@ -1811,8 +1846,8 @@ async function flipCamera() {
 
   try {
     const newStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: newFacingMode },
-      audio: true
+      video: { facingMode: { ideal: newFacingMode } },
+      audio: false
     });
     
     vcLocalState.currentFacingMode = newFacingMode;
@@ -1831,7 +1866,7 @@ async function flipCamera() {
     vcLocalStream.removeTrack(videoTrack);
     vcLocalStream.addTrack(newVideoTrack);
     
-    const localTile = document.querySelector(`[data-peer-id="${currentUser.id}"] video`);
+    const localTile = document.querySelector(`[data-peer-id="${vcPeer?.id || currentUser.id}"] video`);
     if (localTile) localTile.srcObject = vcLocalStream;
 
   } catch (err) {
@@ -1868,14 +1903,14 @@ async function toggleScreenShare() {
       });
     }
 
-    setParticipantMediaState(currentUser.id, { isScreenSharing: false, isCameraOn: true });
+    setParticipantMediaState(vcPeer?.id || currentUser.id, { isScreenSharing: false, isCameraOn: true });
 
     if (vcRealtimeChannel) {
       vcRealtimeChannel.send({
         type: 'broadcast',
         event: 'vc-state',
         payload: {
-          peerId: currentUser.id,
+          peerId: vcPeer?.id || currentUser.id,
           state: { isScreenSharing: false, isCameraOn: true }
         }
       });
@@ -1905,14 +1940,14 @@ async function toggleScreenShare() {
         }
       };
 
-      setParticipantMediaState(currentUser.id, { isScreenSharing: true, isCameraOn: false });
+      setParticipantMediaState(vcPeer?.id || currentUser.id, { isScreenSharing: true, isCameraOn: false });
 
       if (vcRealtimeChannel) {
         vcRealtimeChannel.send({
           type: 'broadcast',
           event: 'vc-state',
           payload: {
-            peerId: currentUser.id,
+            peerId: vcPeer?.id || currentUser.id,
             state: { isScreenSharing: true, isCameraOn: false }
           }
         });
@@ -3221,37 +3256,25 @@ function getGradient(username) {
   return colors[Math.abs(hash) % colors.length];
 }
 
-async function loadAvatarImageForUser(userId) {
+const avatarUrlCache = new Map();
+
+function loadAvatarImageForUser(userId) {
   if (!userId) return null;
+
+  const cachedUrl = avatarUrlCache.get(userId);
+  if (cachedUrl) return cachedUrl;
 
   const entry = avatarIndexByUserId.get(userId);
   const avatarFileName = entry ? entry.fileName : `${userId}.jpg`;
-
   const publicUrl = supabase.storage
     .from("chat-files")
     .getPublicUrl(`avatars/${avatarFileName}`).data.publicUrl;
 
-  const response = await fetch(publicUrl, { cache: "no-store" });
-  if (!response.ok) return null;
-
-  const blob = await response.blob();
-  return await new Promise((resolve, reject) => {
-    const objectUrl = URL.createObjectURL(blob);
-    const img = document.createElement("img");
-    img.alt = "Profile picture";
-    img.onload = () => {
-      URL.revokeObjectURL(objectUrl);
-      resolve(img);
-    };
-    img.onerror = (error) => {
-      URL.revokeObjectURL(objectUrl);
-      reject(error);
-    };
-    img.src = objectUrl;
-  });
+  avatarUrlCache.set(userId, publicUrl);
+  return publicUrl;
 }
 
-async function decorateAvatarElement(element, userId, username, fallbackText) {
+function decorateAvatarElement(element, userId, username, fallbackText) {
   if (!element) return;
 
   const gradient = getGradient(username || "User");
@@ -3264,13 +3287,23 @@ async function decorateAvatarElement(element, userId, username, fallbackText) {
     return;
   }
 
-  const image = await loadAvatarImageForUser(userId).catch(() => null);
-  if (!image) {
+  const publicUrl = loadAvatarImageForUser(userId);
+  if (!publicUrl) {
     element.style.background = `linear-gradient(135deg, ${gradient})`;
     element.textContent = fallbackText;
     return;
   }
 
+  const image = document.createElement("img");
+  image.alt = "Profile picture";
+  image.loading = "lazy";
+  image.decoding = "async";
+  image.src = publicUrl;
+  image.onerror = () => {
+    element.innerHTML = "";
+    element.style.background = `linear-gradient(135deg, ${gradient})`;
+    element.textContent = fallbackText;
+  };
   element.appendChild(image);
 }
 
@@ -3286,6 +3319,7 @@ window.updateGridParticipantLayout = updateGridParticipantLayout;
 
 /* ── DOM READY INITIALIZATION SAFEGUARD ────────────────────── */
 document.addEventListener('DOMContentLoaded', () => {
+  // Safeguard: ensure layout calculations wait until DOM is fully parsed and rendered
   updateLayoutDimensions();
 
   if (isIOS) {
@@ -3296,13 +3330,21 @@ document.addEventListener('DOMContentLoaded', () => {
   /* ── iOS VISUAL VIEWPORT & KEYBOARD EVENT BINDING ───────── */
   if (window.visualViewport) {
     window.visualViewport.addEventListener('resize', () => {
-      updateLayoutDimensions();
+      // Removed window.scrollTo(0, 0) to stop flicker/jitter
       const scroller = document.getElementById('message-scroller');
-      if (scroller) {
-        scroller.scrollTop = scroller.scrollHeight;
+      const messageInput = document.getElementById('message-input');
+      const wasNearBottom = scroller
+        ? (scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight) < 80
+        : true;
+      updateLayoutDimensions();
+      if (scroller && messageInput === document.activeElement && wasNearBottom) {
+        requestAnimationFrame(() => {
+          scroller.scrollTop = scroller.scrollHeight;
+        });
       }
     });
     window.visualViewport.addEventListener('scroll', () => {
+      // Removed window.scrollTo(0, 0) to stop flicker/jitter
       updateLayoutDimensions();
     });
   }
@@ -3315,26 +3357,32 @@ document.addEventListener('DOMContentLoaded', () => {
         if (scroller) {
           scroller.scrollTop = scroller.scrollHeight;
         }
+        // Removed window.scrollTo(0, 0)
         updateLayoutDimensions();
       }, 100);
     });
 
     messageInput.addEventListener("blur", () => {
+      // Removed window.scrollTo(0, 0)
       setTimeout(() => {
         updateLayoutDimensions();
+        // Removed window.scrollTo(0, 0)
       }, 100);
     });
   }
 
   /* ── TOUCH SCROLLING INTERRUPTION PREVENTION ─────────────── */
+  // Prevents root elastic bouncing on non-scrollable UI backgrounds
+  // while allowing momentum flick-scrolling inside designated containers
   document.addEventListener('touchmove', function(e) {
     const scrollableContainer = e.target.closest('#message-scroller, #suggestions-popover, #vc-participant-grid');
-    if (scrollableContainer) return;
+    if (scrollableContainer) return; // Allow natural scrolling inside these elements
     
+    // Allow touch interactions on interactive elements (buttons, links, inputs)
     const interactive = e.target.closest('button, a, input, [role="button"], .action-control-btn, .btn-duel-accept, .btn-duel-decline, .btn-upload-file, .vc-control-btn, .suggestion-item, .nav-auth-btn, .btn-primary');
     if (interactive) return;
     
-    e.preventDefault();
+    e.preventDefault(); // Prevent elastic bouncing on non-scrollable backgrounds
   }, { passive: false });
 });
 </script>
