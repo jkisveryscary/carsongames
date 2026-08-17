@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Dashboard | RapidIdentity</title>
   <script src="../assets/theme-loader.js"></script>
   <script src="peerjs.min.js"></script>
@@ -47,6 +47,7 @@
 
     html, body {
       width: 100%;
+      height: 100%;
       overflow: hidden;
       touch-action: manipulation;
       overscroll-behavior: none;
@@ -55,11 +56,20 @@
       -webkit-font-smoothing: antialiased;
     }
 
+    html {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden !important;
+    }
+
     body {
       position: fixed;
       top: 0;
       left: 0;
-      right: 0;
+      right: auto;
+      width: 100%;
       height: calc(var(--vh) * 100);
       min-height: 0 !important;
       display: flex;
@@ -67,19 +77,19 @@
       overscroll-behavior: none;
     }
 
-    /* Keep the page anchored while iOS shows the keyboard. */
+    /* iOS Safari keyboard viewport handling. The root page is locked in
+       place; JavaScript resizes/repositions the fixed body to the actual
+       visual viewport instead of allowing Safari to pan the whole document. */
     html.keyboard-open,
     body.keyboard-open {
       overflow: hidden !important;
+      overscroll-behavior: none !important;
     }
 
-    /* Keep the actual message input row close to the keyboard.
-       The body already uses the visual viewport height, so no transform
-       is needed; translating by the keyboard height would move the whole
-       composer off-screen on iOS. */
     body.keyboard-open .input-container {
-      padding-bottom: 0;
-      transform: none !important;
+      padding-bottom: 0 !important;
+      position: relative;
+      top: 6px;
     }
 
     header {
@@ -816,52 +826,56 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 /* ── iOS VISUAL VIEWPORT & KEYBOARD FIXES ─────────────── */
 function updateLayoutDimensions() {
-  // Use visualViewport for accurate iOS Safari viewport height
-  // This handles tab bar expand/collapse and keyboard appearance seamlessly
-  let viewportHeight;
-  if (window.visualViewport) {
-    viewportHeight = window.visualViewport.height;
-  } else {
-    viewportHeight = window.innerHeight;
-  }
+  // iOS Safari has separate layout and visual viewports. When the keyboard
+  // opens, size the fixed chat page to the visual viewport and keep its
+  // origin aligned with that viewport instead of letting Safari pan the page.
+  const vv = window.visualViewport;
+  const viewportHeight = vv ? vv.height : window.innerHeight;
+  const viewportWidth = vv ? vv.width : window.innerWidth;
+  const viewportTop = vv ? vv.offsetTop : 0;
+  const viewportLeft = vv ? vv.offsetLeft : 0;
 
-  // Update CSS variables for accurate iOS viewport and keyboard tracking.
   const vh = viewportHeight * 0.01;
   document.documentElement.style.setProperty('--vh', `${vh}px`);
-  const keyboardHeight = window.visualViewport
+  document.documentElement.style.setProperty('--visual-viewport-height', `${viewportHeight}px`);
+  document.documentElement.style.setProperty('--visual-viewport-top', `${viewportTop}px`);
+
+  const keyboardHeight = vv
     ? Math.max(0, window.innerHeight - viewportHeight)
     : 0;
   document.documentElement.style.setProperty('--keyboard-height', `${keyboardHeight}px`);
 
-  // When the iOS keyboard is open, reduce the composer's bottom padding so
-  // the input sits slightly closer to the keyboard without affecting other pages.
   const activeElement = document.activeElement;
   const isTextInput = activeElement && (
     activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA'
   );
   const keyboardOpen = isTextInput && viewportHeight < window.innerHeight - 150;
-  document.body.classList.toggle('keyboard-open', keyboardOpen);
   document.documentElement.classList.toggle('keyboard-open', keyboardOpen);
+  document.body.classList.toggle('keyboard-open', keyboardOpen);
 
-  // iOS Safari can pan the root page when the keyboard opens, even though
-  // the chat body is fixed. Reset the root scroll position so the page
-  // itself never slides away and exposes the background above the keyboard.
-  if (keyboardOpen && (window.scrollX !== 0 || window.scrollY !== 0)) {
-    window.scrollTo(0, 0);
+  // Explicitly size and position the fixed body to the visual viewport.
+  // This is more reliable on iPadOS than window.scrollTo(), which can race
+  // with Safari's own keyboard panning and leave a blank/black page behind.
+  document.body.style.height = `${viewportHeight}px`;
+  document.body.style.width = `${viewportWidth}px`;
+  document.body.style.top = `${viewportTop}px`;
+  document.body.style.left = `${viewportLeft}px`;
+
+  // Keep the root scrolling element at its origin. The message scroller is
+  // the only element that should scroll while the keyboard is visible.
+  if (document.scrollingElement) {
+    document.scrollingElement.scrollTop = 0;
+    document.scrollingElement.scrollLeft = 0;
   }
 
-  // Ensure popover stays within visible bounds when keyboard is open
   const popover = document.getElementById('suggestions-popover');
   if (popover && popover.style.display === 'block') {
     const inputContainer = document.querySelector('.input-container');
     if (inputContainer) {
       const inputRect = inputContainer.getBoundingClientRect();
-      // Space available between the top of the input container and the top of the visible viewport
-      // Accounting for 72px header height + 10px buffer
       const availableSpace = inputRect.top - 72 - 10;
       const minPopoverHeight = 80;
       const maxPopoverHeight = 240;
-
       if (availableSpace < maxPopoverHeight) {
         popover.style.maxHeight = `${Math.max(availableSpace, minPopoverHeight)}px`;
       } else {
@@ -3351,52 +3365,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
   /* ── iOS VISUAL VIEWPORT & KEYBOARD EVENT BINDING ───────── */
   if (window.visualViewport) {
-    window.visualViewport.addEventListener('resize', () => {
-      // Removed window.scrollTo(0, 0) to stop flicker/jitter
-      const scroller = document.getElementById('message-scroller');
-      const messageInput = document.getElementById('message-input');
-      const wasNearBottom = scroller
-        ? (scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight) < 80
-        : true;
+    const syncViewport = () => {
       updateLayoutDimensions();
-      if (scroller && messageInput === document.activeElement && wasNearBottom) {
-        requestAnimationFrame(() => {
-          scroller.scrollTop = scroller.scrollHeight;
-        });
-      }
-    });
-    window.visualViewport.addEventListener('scroll', () => {
-      updateLayoutDimensions();
-      // Safari may pan the root document while the keyboard is visible.
-      // Keep the fixed chat page anchored at the top without interfering
-      // with normal scrolling inside the message scroller.
-      if (document.body.classList.contains('keyboard-open')) {
-        if (window.scrollX !== 0 || window.scrollY !== 0) {
-          window.scrollTo(0, 0);
-        }
-      }
+    };
+
+    window.visualViewport.addEventListener('resize', syncViewport);
+    window.visualViewport.addEventListener('scroll', syncViewport);
+    window.addEventListener('orientationchange', () => {
+      setTimeout(syncViewport, 50);
     });
   }
 
   const messageInput = document.getElementById("message-input");
   if (messageInput) {
     messageInput.addEventListener("focus", () => {
-      setTimeout(() => {
-        const scroller = document.getElementById('message-scroller');
-        if (scroller) {
-          scroller.scrollTop = scroller.scrollHeight;
-        }
-        updateLayoutDimensions();
-        if (document.body.classList.contains('keyboard-open')) {
-          window.scrollTo(0, 0);
-        }
-      }, 100);
+      // Let Safari finish opening the keyboard before measuring the visual viewport.
+      requestAnimationFrame(() => {
+        setTimeout(updateLayoutDimensions, 50);
+      });
     });
 
     messageInput.addEventListener("blur", () => {
-      setTimeout(() => {
-        updateLayoutDimensions();
-      }, 100);
+      setTimeout(updateLayoutDimensions, 50);
     });
   }
 
