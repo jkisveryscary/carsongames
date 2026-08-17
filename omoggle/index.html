@@ -6,7 +6,7 @@
   <title>Dashboard | RapidIdentity</title>
   <script src="../assets/theme-loader.js"></script>
   <link rel="stylesheet" href="../style.css">
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@700;800&family=Plus+Jakarta+Sans:wght=500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@700;800&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap" rel="stylesheet">
 
   <script src="peerjs.min.js"></script>
 
@@ -125,7 +125,22 @@
 
   <script type="module">
     import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-    import { AuraEngine } from "./auraEngine.js";
+
+    // FIX: Dynamic import with fallback to prevent the whole script from crashing if auraEngine.js is missing
+    let AuraEngine;
+    try {
+      const mod = await import("./auraEngine.js");
+      AuraEngine = mod.AuraEngine;
+      if (!AuraEngine || typeof AuraEngine.calculateMatchFlux !== 'function') throw new Error("Invalid AuraEngine");
+    } catch (e) {
+      console.warn("AuraEngine missing or invalid, using mock fallback.");
+      AuraEngine = {
+        calculateMatchFlux: (score) => {
+          const delta = (Math.random() - 0.5) * 8;
+          return Math.max(0, Math.min(100, score + delta));
+        }
+      };
+    }
 
     const OUTCOME_PHRASES = {
       wonByATon: ["INSANE AURA! YOU ABSOLUTELY CLAPPED THEM!", "INFINITE RIZZ! THEY DIDN'T STAND A CHANCE", "EXTREME AURA! THEY'RE COOKED"],
@@ -171,7 +186,7 @@
     let currentConnection = null;
     let isHost = false;
     let activeQueueDocRef = null;
-    let queueListenerUnsubscribe = null;
+    let queueChannel = null; // FIX: Renamed from queueListenerUnsubscribe to track channel properly
     let inQueueProcess = false;
     let myMediaStream = null;
 
@@ -209,6 +224,9 @@
     }
 
     async function initPeerSession() {
+      // FIX: Prevent creating multiple Peer instances if auth state refreshes
+      if (peer && !peer.destroyed) return; 
+
       if (privateRoomId && privateRole === "host") {
         myPeerId = privateRoomId;
         isHost = true;
@@ -231,6 +249,15 @@
         if (myMediaStream) {
           incomingCall.answer(myMediaStream);
           incomingCall.on('stream', (remoteStream) => { opponentVideo.srcObject = remoteStream; });
+        } else {
+          incomingCall.answer(); // Fallback so connection doesn't hang if camera fails
+        }
+      });
+
+      peer.on('error', (err) => {
+        console.error("PeerJS Error:", err);
+        if (err.type === 'unavailable-id') {
+          lobbyMsg.innerText = "Room ID already in use. Please try another.";
         }
       });
     }
@@ -264,6 +291,7 @@
       if (logoutBtn) {
         logoutBtn.onclick = async () => {
           safelyStopCameraTracks();
+          if (peer && !peer.destroyed) peer.destroy();
           await supabase.auth.signOut();
           window.location.reload();
         };
@@ -271,6 +299,8 @@
 
       if (privateRoomId) {
         switchStage(stageMatch);
+        // FIX: Host of private room must also acquire camera, otherwise they can't answer the video call
+        await safeAcquireCameraStream(); 
         if (linkedHostName) {
           opponentNameTag.innerText = decodeURIComponent(linkedHostName);
         } else {
@@ -310,6 +340,13 @@
     async function startMatchmaking() {
       if (privateRoomId) return;
       if (inQueueProcess || !myPeerId) return;
+      
+      // FIX: Ensure user is logged in before queuing
+      if (!currentUserProfile.id) {
+        lobbyMsg.innerText = "Please sign in to queue for a match.";
+        return;
+      }
+
       inQueueProcess = true;
 
       const videoAcquired = await safeAcquireCameraStream();
@@ -375,35 +412,44 @@
         if (newQueueItem) {
           activeQueueDocRef = newQueueItem.id;
 
-          if (queueListenerUnsubscribe) queueListenerUnsubscribe.unsubscribe();
+          if (queueChannel) supabase.removeChannel(queueChannel);
 
           // Stream structural tracking listener
-          queueListenerUnsubscribe = supabase
+          queueChannel = supabase
             .channel(`public:showdown_queue:id=eq.${newQueueItem.id}`)
             .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'showdown_queue', filter: `id=eq.${newQueueItem.id}` }, async (payload) => {
               const d = payload.new;
               if (d && d.status === "matched") {
                 opponentNameTag.innerText = d.guestName || "Player";
                 await supabase.from("showdown_queue").delete().eq("id", newQueueItem.id);
-                if (queueListenerUnsubscribe) queueListenerUnsubscribe.unsubscribe();
+                if (queueChannel) {
+                  supabase.removeChannel(queueChannel);
+                  queueChannel = null;
+                }
               }
             })
             .subscribe();
         }
       } catch (err) {
+        console.error("Matchmaking error:", err);
         cancelSearch();
       }
       inQueueProcess = false;
     }
 
     async function cancelSearch() {
-      if (queueListenerUnsubscribe) {
-        queueListenerUnsubscribe.unsubscribe();
-        queueListenerUnsubscribe = null;
+      // FIX: Use removeChannel instead of deprecated unsubscribe
+      if (queueChannel) {
+        supabase.removeChannel(queueChannel);
+        queueChannel = null;
       }
       if (isHost && activeQueueDocRef) {
         await supabase.from("showdown_queue").delete().eq("id", activeQueueDocRef);
         activeQueueDocRef = null;
+      }
+      if (currentConnection) {
+        currentConnection.close();
+        currentConnection = null;
       }
       safelyStopCameraTracks();
       switchStage(stageLobby);
@@ -411,7 +457,17 @@
 
     function setupDataChannel(conn) {
       currentConnection = conn;
+      
+      // FIX: Add timeout for P2P connection to prevent infinite hanging if connection fails
+      let connectionTimeout = setTimeout(() => {
+        if (!currentConnection?.open) {
+          console.warn("P2P Connection timeout");
+          cancelSearch();
+        }
+      }, 15000);
+
       currentConnection.on('open', () => {
+        clearTimeout(connectionTimeout);
         /* OPTIMIZATION: Transmit username profile information over raw P2P buffers directly upon handshake confirmation */
         currentConnection.send({ type: 'init_name', username: currentUserProfile.username });
 
@@ -433,6 +489,11 @@
         clearLoops();
         safelyStopCameraTracks();
         switchStage(stageLobby);
+      });
+      
+      currentConnection.on('error', (err) => {
+        console.error("Data channel error:", err);
+        cancelSearch();
       });
     }
 
@@ -495,6 +556,7 @@
 
     function cleanExit() {
       if (currentConnection) currentConnection.close();
+      if (peer && !peer.destroyed) peer.destroy();
       clearLoops();
       safelyStopCameraTracks();
       window.location.href = privateRoomId ? "../chat/" : "#";
@@ -509,6 +571,11 @@
       await startMatchmaking();
     });
     btnExit.addEventListener('click', cleanExit);
+    
+    window.addEventListener('beforeunload', () => {
+      safelyStopCameraTracks();
+      if (peer && !peer.destroyed) peer.destroy();
+    });
   </script>
 </body>
 </html>
