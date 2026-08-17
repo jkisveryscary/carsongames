@@ -61,6 +61,7 @@
       left: 0;
       right: 0;
       height: 100dvh;
+      height: calc(var(--vh, 1vh) * 100); /* ADDED: JS-driven visual-viewport height (tab bar safe) */
       display: flex;
       flex-direction: column;
       overscroll-behavior: none;
@@ -803,8 +804,10 @@ function updateLayoutDimensions() {
   // Use visualViewport for accurate iOS Safari viewport height
   // This handles tab bar expand/collapse and keyboard appearance seamlessly
   let viewportHeight;
+  let viewportOffsetTop = 0; /* ADDED */
   if (window.visualViewport) {
     viewportHeight = window.visualViewport.height;
+    viewportOffsetTop = window.visualViewport.offsetTop; /* ADDED: keyboard pan offset */
   } else {
     viewportHeight = window.innerHeight;
   }
@@ -812,6 +815,18 @@ function updateLayoutDimensions() {
   // Update CSS variable for accurate viewport height tracking on iOS
   const vh = viewportHeight * 0.01;
   document.documentElement.style.setProperty('--vh', `${vh}px`);
+
+  /* ── ADDED: iOS KEYBOARD / TAB-BAR PIN ─────────────────────────────
+     Size + pin the fixed <body> shell to the *visual* viewport so the
+     input bar always sits at the true bottom of the visible screen —
+     whether Safari toolbars are showing or the keyboard pushed the
+     page up (offsetTop). The flex column shrinks .message-scroller,
+     never the input row.                                              */
+  const bodyEl = document.body;
+  if (bodyEl) {
+    bodyEl.style.height = `${viewportHeight}px`;
+    bodyEl.style.top = `${viewportOffsetTop}px`;
+  }
 
   // Ensure popover stays within visible bounds when keyboard is open
   const popover = document.getElementById('suggestions-popover');
@@ -3313,6 +3328,26 @@ document.addEventListener('DOMContentLoaded', () => {
     window.visualViewport.addEventListener('scroll', () => {
       // Removed window.scrollTo(0, 0) to stop flicker/jitter
       updateLayoutDimensions();
+    });
+  }
+
+  /* ── ADDED: re-pin layout on shell-level viewport changes ────────── */
+  window.addEventListener('resize', () => {
+    updateLayoutDimensions();
+  });
+  window.addEventListener('orientationchange', () => {
+    setTimeout(updateLayoutDimensions, 150);
+  });
+  window.addEventListener('pageshow', () => {
+    updateLayoutDimensions();
+  });
+
+  /* ── ADDED: re-pin during keyboard open/close animation ──────────── */
+  const messageInputRef = document.getElementById("message-input");
+  if (messageInputRef) {
+    messageInputRef.addEventListener('focus', () => {
+      setTimeout(updateLayoutDimensions, 300);
+      setTimeout(updateLayoutDimensions, 600);
     });
   }
 
