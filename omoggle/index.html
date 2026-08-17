@@ -179,14 +179,14 @@
     const urlParams = new URLSearchParams(window.location.search);
     const privateRoomId = urlParams.get('room');
     const privateRole = urlParams.get('role');
-    const linkedHostName = urlParams.get('hostName'); // OPTIMIZATION: Read fallback parameter instantly from search link profiles
+    const linkedHostName = urlParams.get('hostName');
 
     let peer = null;
     let myPeerId = null;
     let currentConnection = null;
     let isHost = false;
     let activeQueueDocRef = null;
-    let queueChannel = null; // FIX: Renamed from queueListenerUnsubscribe to track channel properly
+    let queueChannel = null;
     let inQueueProcess = false;
     let myMediaStream = null;
 
@@ -194,6 +194,8 @@
     let timerInterval;
     let currentScore = 50;
     let currentUserProfile = { id: null, username: "Unknown" };
+
+    const MAX_AURA = 1000;
 
     /* ── SECURE HARDWARE STREAM LIFECYCLE CLEANER ───────────────── */
     function safelyStopCameraTracks() {
@@ -224,8 +226,7 @@
     }
 
     async function initPeerSession() {
-      // FIX: Prevent creating multiple Peer instances if auth state refreshes
-      if (peer && !peer.destroyed) return; 
+      if (peer && !peer.destroyed) return;
 
       if (privateRoomId && privateRole === "host") {
         myPeerId = privateRoomId;
@@ -250,7 +251,7 @@
           incomingCall.answer(myMediaStream);
           incomingCall.on('stream', (remoteStream) => { opponentVideo.srcObject = remoteStream; });
         } else {
-          incomingCall.answer(); // Fallback so connection doesn't hang if camera fails
+          incomingCall.answer();
         }
       });
 
@@ -299,8 +300,7 @@
 
       if (privateRoomId) {
         switchStage(stageMatch);
-        // FIX: Host of private room must also acquire camera, otherwise they can't answer the video call
-        await safeAcquireCameraStream(); 
+        await safeAcquireCameraStream();
         if (linkedHostName) {
           opponentNameTag.innerText = decodeURIComponent(linkedHostName);
         } else {
@@ -340,8 +340,7 @@
     async function startMatchmaking() {
       if (privateRoomId) return;
       if (inQueueProcess || !myPeerId) return;
-      
-      // FIX: Ensure user is logged in before queuing
+
       if (!currentUserProfile.id) {
         lobbyMsg.innerText = "Please sign in to queue for a match.";
         return;
@@ -359,7 +358,6 @@
       switchStage(stageSearching);
 
       try {
-        // Find existing match waiting for opponents
         const { data: queueItems } = await supabase
           .from("showdown_queue")
           .select("*")
@@ -370,7 +368,6 @@
         let selectedDoc = queueItems?.[0];
 
         if (selectedDoc) {
-          // PostgreSQL conditional matching update acts natively as a transactional lock
           const { data: matchedRows, error: matchError } = await supabase
             .from("showdown_queue")
             .update({
@@ -397,7 +394,6 @@
           }
         }
 
-        // Otherwise provision hosting parameters if no entry is active
         isHost = true;
         const { data: newQueueItem, error: insertError } = await supabase
           .from("showdown_queue")
@@ -426,7 +422,6 @@
 
           if (queueChannel) supabase.removeChannel(queueChannel);
 
-          // Stream structural tracking listener
           queueChannel = supabase
             .channel(`public:showdown_queue:id=eq.${newQueueItem.id}`)
             .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'showdown_queue', filter: `id=eq.${newQueueItem.id}` }, async (payload) => {
@@ -450,7 +445,6 @@
     }
 
     async function cancelSearch() {
-      // FIX: Use removeChannel instead of deprecated unsubscribe
       if (queueChannel) {
         supabase.removeChannel(queueChannel);
         queueChannel = null;
@@ -469,8 +463,7 @@
 
     function setupDataChannel(conn) {
       currentConnection = conn;
-      
-      // FIX: Add timeout for P2P connection to prevent infinite hanging if connection fails
+
       let connectionTimeout = setTimeout(() => {
         if (!currentConnection?.open) {
           console.warn("P2P Connection timeout");
@@ -480,7 +473,6 @@
 
       currentConnection.on('open', () => {
         clearTimeout(connectionTimeout);
-        /* OPTIMIZATION: Transmit username profile information over raw P2P buffers directly upon handshake confirmation */
         currentConnection.send({ type: 'init_name', username: currentUserProfile.username });
 
         if (!isHost && myMediaStream) {
@@ -494,7 +486,10 @@
         if (data.type === 'init_name') {
           opponentNameTag.innerText = data.username;
         }
-        if (data.type === 'sync_score') { currentScore = data.score; renderUIFrames(); }
+        if (data.type === 'sync_score') {
+          currentScore = Math.max(0, Math.min(100, Number(data.score) || 0));
+          renderUIFrames();
+        }
       });
 
       currentConnection.on('close', () => {
@@ -502,7 +497,7 @@
         safelyStopCameraTracks();
         switchStage(stageLobby);
       });
-      
+
       currentConnection.on('error', (err) => {
         console.error("Data channel error:", err);
         cancelSearch();
@@ -528,7 +523,7 @@
 
       matchInterval = setInterval(() => {
         if (isHost) {
-          currentScore = AuraEngine.calculateMatchFlux(currentScore);
+          currentScore = Math.max(0, Math.min(100, Number(AuraEngine.calculateMatchFlux(currentScore)) || 0));
           if (currentConnection?.open) currentConnection.send({ type: 'sync_score', score: currentScore });
           renderUIFrames();
         }
@@ -536,10 +531,17 @@
     }
 
     function renderUIFrames() {
+      currentScore = Math.max(0, Math.min(100, Number(currentScore) || 0));
+
       let calculatedPos = isHost ? currentScore : (100 - currentScore);
+      calculatedPos = Math.max(0, Math.min(100, calculatedPos));
+
+      const userAura = Math.max(0, Math.min(MAX_AURA, Math.round((100 - calculatedPos) * 10)));
+      const opponentAura = Math.max(0, Math.min(MAX_AURA, Math.round(calculatedPos * 10)));
+
       scaleNeedle.style.left = calculatedPos + '%';
-      userAuraText.innerText = `Aura: +${Math.round((100 - calculatedPos) * 10)}`;
-      oppAuraText.innerText = `Aura: +${Math.round(calculatedPos * 10)}`;
+      userAuraText.innerText = `Aura: +${userAura}`;
+      oppAuraText.innerText = `Aura: +${opponentAura}`;
 
       userSlot.className = `player-slot ${calculatedPos < 48 ? 'winning' : ''}`;
       opponentSlot.className = `player-slot ${calculatedPos > 52 ? 'winning' : ''}`;
@@ -552,6 +554,8 @@
       if (!privateRoomId) btnNext.style.display = 'inline-block';
 
       let finalPosition = isHost ? currentScore : (100 - currentScore);
+      finalPosition = Math.max(0, Math.min(100, Number(finalPosition) || 0));
+
       let phrases = OUTCOME_PHRASES.tie;
       if (finalPosition < 20) phrases = OUTCOME_PHRASES.wonByATon;
       else if (finalPosition < 40) phrases = OUTCOME_PHRASES.won;
@@ -583,7 +587,7 @@
       await startMatchmaking();
     });
     btnExit.addEventListener('click', cleanExit);
-    
+
     window.addEventListener('beforeunload', () => {
       safelyStopCameraTracks();
       if (peer && !peer.destroyed) peer.destroy();
