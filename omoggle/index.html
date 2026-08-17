@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,9 +8,7 @@
   <script src="../assets/theme-loader.js"></script>
   <link rel="stylesheet" href="../style.css">
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@700;800&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap" rel="stylesheet">
-
   <script src="peerjs.min.js"></script>
-
   <style>
     /* ── SHOWDOWN STYLE ────────────────────────────────── */
     /* OPTIMIZATION: Configured maximum constraints and auto-scrolling to trap panels on tiny viewports seamlessly */
@@ -22,8 +21,6 @@
     .status-display-msg { color: #ef4444; margin-top: 1rem; font-size: 0.95rem; font-weight: 600; min-height: 1.5rem; }
     .radar-spinner { width: 70px; height: 70px; border: 4px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 2rem; }
     @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* OPTIMIZATION: Flex responsive design patterns applied for compact vertical spacing limitations */
     .battleground { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; width: 100%; margin-bottom: 1.5rem; }
     @media (max-height: 700px) {
       .battleground { gap: 0.75rem; margin-bottom: 0.75rem; }
@@ -37,7 +34,6 @@
     .player-label.opponent { left: auto; right: 12px; }
     .live-metrics { margin-top: auto; background: rgba(0,0,0,0.6); padding: 4px 10px; border-radius: 4px; margin-bottom: 12px; font-family: var(--font-display); font-weight: 700; font-size: 1.1rem; color: var(--text-muted); z-index: 2; position: relative; }
     .winning .live-metrics { color: var(--accent); }
-
     .timer-banner { font-family: var(--font-display); font-size: 2.2rem; font-weight: 800; color: #fff; margin-bottom: 1rem; }
     .scale-wrapper { width: 80%; max-width: 500px; margin: 0 auto; position: relative; }
     .scale-labels { display: flex; justify-content: space-between; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.4rem; text-transform: uppercase; }
@@ -50,7 +46,6 @@
   <link rel="icon" href="/assets/favicon.ico" type="image/x-icon">
 </head>
 <body>
-
   <header>
     <div class="nav-container">
       <a href="" class="logo">CarsonGames</a>
@@ -69,7 +64,6 @@
 
   <main class="showdown-container">
     <div class="showdown-card">
-
       <div id="stage-lobby" class="view-stage active">
         <h2 class="showdown-title">OMOGGLE</h2>
         <p class="showdown-desc">COMPETE AGAINST OTHER PEOPLE TO SEE WHO HAS MORE AURA AFTER 15 SECONDS OF LIVE VIDEO</p>
@@ -86,14 +80,12 @@
 
       <div id="stage-match" class="view-stage">
         <div id="countdown" class="timer-banner">15s</div>
-
         <div class="battleground">
           <div id="slot-user" class="player-slot">
             <span class="player-label">You</span>
             <video id="user-video" autoplay playsinline muted></video>
             <div id="user-aura-val" class="live-metrics">Aura: +500</div>
           </div>
-
           <div id="slot-opponent" class="player-slot">
             <span class="player-label opponent" id="opponent-name">Unknown</span>
             <video id="opponent-video" autoplay playsinline></video>
@@ -119,14 +111,12 @@
           <button id="btn-exit" class="btn-primary" style="display: none; background: var(--surface); border: 1px solid var(--border);">Leave</button>
         </div>
       </div>
-
     </div>
   </main>
 
   <script type="module">
     import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-    // FIX: Dynamic import with fallback to prevent the whole script from crashing if auraEngine.js is missing
     let AuraEngine;
     try {
       const mod = await import("./auraEngine.js");
@@ -143,13 +133,92 @@
     }
 
     const OUTCOME_PHRASES = {
-      wonByATon: ["INSANE AURA! YOU ABSOLUTELY CLAPPED THEM!", "INFINITE RIZZ! THEY DIDN'T STAND A CHANCE", "EXTREME AURA! THEY'RE COOKED"],
-      won: ["YOU WIN! NO CAP", "W RIZZ!", "AURA FARM"],
-      barelyWon: ["BARELY WON! JUST EDGING OUT THE VICTORY", "EXTREMELY CLOSE! YOUR AURA WAS BARELY ENOUGH"],
-      tie: ["IT'S A TIE!"],
-      barelyLost: ["BARELY LOST! JUST BARELY LESS AURA", "SO CLOSE! GET BETTER"],
-      lost: ["YOU LOST! GET BETTER", "L AURA. TIME TO GET BETTER"],
-      lostByATon: ["YOU LOST!!! WATCH SOME YT TUTORIALS", "NEGATIVE AURA! CLAPPED", "GET BETTER UNC"]
+      wonByATon: [
+        "BRO GOT VIOLATED 💀",
+        "BRO GOT ABSOLUTELY COOKED.",
+        "INSANE AURA DIFF.",
+        "BRO GOT FARMED FOR AURA.",
+        "THAT WAS A VIOLATION 😭",
+        "YOU ATE. THEY GOT NO CRUMBS.",
+        "BRO GOT OUT-AURA'D.",
+        "ABSOLUTE AURA FARM.",
+        "THEY ARE COOKED 💀",
+        "THAT WAS NOT EVEN CLOSE."
+      ],
+      won: [
+        "W AURA 🔥",
+        "YOU COOKED.",
+        "COMMON W.",
+        "AURA DIFF.",
+        "YOU ATE THAT.",
+        "CERTIFIED W.",
+        "BRO IS LOCKED IN.",
+        "MASSIVE W.",
+        "YOU'RE COOKING.",
+        "CLEAN AURA W."
+      ],
+      barelyWon: [
+        "BARELY A W 😭",
+        "YOU LOWKEY COOKED.",
+        "THAT WAS WAY TOO CLOSE.",
+        "W BY A HAIR.",
+        "YOU CLUTCHED THAT.",
+        "THE AURA BARELY HELD.",
+        "THAT WAS CLOSE 💀",
+        "MINOR W.",
+        "YOU ALMOST SOLD.",
+        "BARELY OUT-AURA'D."
+      ],
+      tie: [
+        "AURA CHECK: TIED.",
+        "NO AURA DIFF.",
+        "BOTH OF YOU COOKED.",
+        "ACTUALLY A 50/50.",
+        "THE AURA IS IDENTICAL.",
+        "NEITHER OF YOU WON 💀",
+        "AURA DEADLOCK.",
+        "TOO CLOSE TO CALL.",
+        "EQUAL AURA.",
+        "NO ONE GOT COOKED."
+      ],
+      barelyLost: [
+        "BARELY AN L 😭",
+        "YOU ALMOST COOKED.",
+        "THAT WAS SO CLOSE.",
+        "YOU SOLD AT THE END 💀",
+        "MINOR AURA L.",
+        "YOU WERE ONE AURA POINT AWAY.",
+        "YOU ALMOST HAD IT.",
+        "THAT WAS A CLOSE L.",
+        "BRO BARELY SOLD.",
+        "JUST MISSED THE W."
+      ],
+      lost: [
+        "L AURA 💀",
+        "YOU GOT COOKED.",
+        "AURA DIFF.",
+        "BRO SOLD.",
+        "COMMON L.",
+        "YOU GOT OUT-AURA'D.",
+        "TIME TO LOCK IN.",
+        "MASSIVE AURA L.",
+        "YOU GOT VIOLATED.",
+        "BRO IS COOKED."
+      ],
+      lostByATon: [
+        "BRO GOT VIOLATED 💀",
+        "BRO GOT ABSOLUTELY COOKED.",
+        "NEGATIVE AURA IS CRAZY.",
+        "THAT WAS AN AURA DISASTER.",
+        "YOU GOT FARMED FOR AURA.",
+        "BRO SOLD THE WHOLE MATCH 😭",
+        "MASSIVE AURA L.",
+        "PLEASE LOCK IN.",
+        "THAT WAS NOT EVEN A CONTEST.",
+        "BRO GOT OBLITERATED 💀",
+        "ABSOLUTE VIOLATION.",
+        "THE AURA GAP IS INSANE."
+      ]
     };
 
     /* SUPABASE CONFIG */
@@ -194,10 +263,8 @@
     let timerInterval;
     let currentScore = 50;
     let currentUserProfile = { id: null, username: "Unknown" };
-
     const MAX_AURA = 1000;
 
-    /* ── SECURE HARDWARE STREAM LIFECYCLE CLEANER ───────────────── */
     function safelyStopCameraTracks() {
       if (myMediaStream) {
         myMediaStream.getTracks().forEach(track => {
@@ -336,7 +403,6 @@
       stage.classList.add('active');
     }
 
-    /* ── MATCHMAKING CORE PIPELINE ───────────────────────── */
     async function startMatchmaking() {
       if (privateRoomId) return;
       if (inQueueProcess || !myPeerId) return;
@@ -532,7 +598,6 @@
 
     function renderUIFrames() {
       currentScore = Math.max(0, Math.min(100, Number(currentScore) || 0));
-
       let calculatedPos = isHost ? currentScore : (100 - currentScore);
       calculatedPos = Math.max(0, Math.min(100, calculatedPos));
 
@@ -595,3 +660,4 @@
   </script>
 </body>
 </html>
+```
