@@ -8,11 +8,24 @@
   <link rel="stylesheet" href="../style.css">
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@700;800&family=Plus+Jakarta+Sans:wght=500;600;700&display=swap" rel="stylesheet">
   <style>
-    /* ── DYNAMIC THEME CLASSES ── */
-    body {
-      transition: background 0.3s ease;
+    /* ── IPAD & WEBKIT FONT / WEIGHT FIXES ── */
+    html {
+      -webkit-text-size-adjust: 100%;
     }
 
+    body {
+      transition: background 0.3s ease;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      text-rendering: optimizeLegibility;
+    }
+
+    input, button, textarea, select {
+      -webkit-appearance: none;
+      font-family: inherit;
+    }
+
+    /* ── DYNAMIC THEME CLASSES ── */
     .settings-hero { text-align: center; padding: 4rem 2rem 2rem; }
     .settings-hero h1 { font-family: var(--font-display); font-size: 3rem; font-weight: 800; }
     .settings-hero p { color: var(--text-muted); margin-top: 0.5rem; }
@@ -552,25 +565,29 @@
       }
 
       settingsWrapper.innerHTML = `
-        <form id="username-form" class="settings-section">
+        <!-- Hidden dummy inputs to trick aggressive browser autofill -->
+        <input type="text" style="display:none" aria-hidden="true">
+        <input type="password" style="display:none" aria-hidden="true">
+
+        <form id="username-form" class="settings-section" autocomplete="off">
           <h3>Change Username</h3>
           <div class="form-group">
             <label for="username">New Username</label>
-            <input type="text" id="username" value="${profile?.username || ''}" required>
+            <input type="text" id="username" name="new-username-field" value="${profile?.username || ''}" autocomplete="off" required>
           </div>
           <div class="btn-container"><button type="submit" class="btn-primary">Update Username</button></div>
           <div id="username-msg" class="status-msg"></div>
         </form>
 
-        <form id="password-form" class="settings-section">
+        <form id="password-form" class="settings-section" autocomplete="off">
           <h3>Change Password</h3>
           <div class="form-group">
             <label for="new-password">New Password</label>
-            <input type="password" id="new-password" placeholder="Enter new password" required minlength="6">
+            <input type="password" id="new-password" name="user-new-password" placeholder="Enter new password" autocomplete="new-password" required minlength="6">
           </div>
           <div class="form-group">
             <label for="confirm-password">Confirm New Password</label>
-            <input type="password" id="confirm-password" placeholder="Confirm new password" required minlength="6">
+            <input type="password" id="confirm-password" name="user-confirm-password" placeholder="Confirm new password" autocomplete="new-password" required minlength="6">
           </div>
           <div class="btn-container"><button type="submit" class="btn-primary">Update Password</button></div>
           <div id="password-msg" class="status-msg"></div>

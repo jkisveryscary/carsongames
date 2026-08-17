@@ -6,9 +6,25 @@
   <title>Dashboard | RapidIdentity</title>
   <script src="../assets/theme-loader.js"></script>
   <link rel="stylesheet" href="../style.css">
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@700;800&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@700;800&family=Plus+Jakarta+Sans:wght=500;600;700&display=swap" rel="stylesheet">
   <script src="peerjs.min.js"></script>
   <style>
+    /* ── IPAD & WEBKIT FONT / WEIGHT FIXES ── */
+    html {
+      -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      text-rendering: optimizeLegibility;
+    }
+
+    input, button, textarea, select {
+      -webkit-appearance: none;
+      font-family: inherit;
+    }
+
     /* ── SHOWDOWN STYLE ────────────────────────────────── */
     /* OPTIMIZATION: Configured maximum constraints and auto-scrolling to trap panels on tiny viewports seamlessly */
     .showdown-container { max-width: 1000px; margin: 1rem auto; padding: 0 1.5rem; width: 100%; box-sizing: border-box; }
