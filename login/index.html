@@ -121,34 +121,20 @@ async function signUp(username, emailVal, passwordVal) {
     return false;
   }
 
+  // Pass username inside raw_user_meta_data for the DB trigger
   const { data, error } = await supabase.auth.signUp({
     email: emailVal,
-    password: passwordVal
+    password: passwordVal,
+    options: {
+      data: {
+        username: username.trim()
+      }
+    }
   });
 
   if (error) {
     alert(error.message);
     return false;
-  }
-
-  if (data?.user) {
-    // Inject profile properties directly inside your public schema tracking system
-    const { error: profileError } = await supabase
-      .from("users")
-      .insert([
-        {
-          id: data.user.id,
-          username: username.trim(),
-          email: emailVal,
-          role: "user",
-          rank: "basic",
-          createdAt: Date.now()
-        }
-      ]);
-
-    if (profileError) {
-      console.error("Failed structural profile provisioning logic maps:", profileError.message);
-    }
   }
 
   return true;
